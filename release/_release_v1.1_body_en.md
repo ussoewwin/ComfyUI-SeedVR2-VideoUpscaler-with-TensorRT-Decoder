@@ -4,6 +4,8 @@
 
 This release adds **native INT8 loading** for SeedVR2 DiT weights (`int8_tensorwise` + `comfy_quant` / `weight_scale`) via construction-time `comfy.ops.mixed_precision_ops`, so INT8 packs stay quantized through `load_state_dict` instead of expanding to full FP16.
 
+**Guide (full write-up):** https://github.com/ussoewwin/ComfyUI-SeedVR2_VideoUpscaler/blob/main/md/SEEDVR2_INT8_NATIVE_OPS_GUIDE.md
+
 ---
 
 ## 1. Summary
@@ -77,4 +79,4 @@ Tags commit **`3515c33`** on **ComfyUI-SeedVR2_VideoUpscaler** (SeedVR2 DiT nati
 - **Repository:** https://github.com/ussoewwin/ComfyUI-SeedVR2_VideoUpscaler  
 - **This release:** https://github.com/ussoewwin/ComfyUI-SeedVR2_VideoUpscaler/releases/tag/v1.1  
 - **Commit:** https://github.com/ussoewwin/ComfyUI-SeedVR2_VideoUpscaler/commit/3515c330ad1ec2a6e20d3fb4e905cd0465a142b1  
-- **Guide:** `md/SEEDVR2_INT8_NATIVE_OPS_GUIDE.md`  
+- **Guide:** https://github.com/ussoewwin/ComfyUI-SeedVR2_VideoUpscaler/blob/main/md/SEEDVR2_INT8_NATIVE_OPS_GUIDE.md  
