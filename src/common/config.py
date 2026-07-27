@@ -110,7 +110,7 @@ def import_item(path: str, name: str) -> Any:
         raise ImportError(f"Could not import '{name}' from '{path}': {e}")
 
 
-def create_object(config: DictConfig) -> Any:
+def create_object(config: DictConfig, **extra_kwargs) -> Any:
     """
     Create an object from config.
     The config is expected to contains the following:
@@ -118,6 +118,9 @@ def create_object(config: DictConfig) -> Any:
       path: path.to.module
       name: MyClass
       args: as_config | as_params (default to as_config)
+
+    ``extra_kwargs`` are merged at construction time only (e.g. ``operations``
+    for ComfyUI ``comfy.ops`` HSWQ INT8 injection). Not stored in YAML.
     """
     
     item = import_item(
@@ -126,9 +129,10 @@ def create_object(config: DictConfig) -> Any:
     )
     args = config.__object__.get("args", "as_config")
     if args == "as_config":
-        return item(config)
+        return item(config, **extra_kwargs)
     if args == "as_params":
         config = OmegaConf.to_object(config)
         config.pop("__object__")
+        config.update(extra_kwargs)
         return item(**config)
     raise NotImplementedError(f"Unknown args type: {args}")

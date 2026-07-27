@@ -28,12 +28,14 @@ class TimeEmbedding(nn.Module):
         sinusoidal_dim: int,
         hidden_dim: int,
         output_dim: int,
+        operations=None,
     ):
         super().__init__()
+        ops = operations if operations is not None else nn
         self.sinusoidal_dim = sinusoidal_dim
-        self.proj_in = nn.Linear(sinusoidal_dim, hidden_dim)
-        self.proj_hid = nn.Linear(hidden_dim, hidden_dim)
-        self.proj_out = nn.Linear(hidden_dim, output_dim)
+        self.proj_in = ops.Linear(sinusoidal_dim, hidden_dim)
+        self.proj_hid = ops.Linear(hidden_dim, hidden_dim)
+        self.proj_out = ops.Linear(hidden_dim, output_dim)
         self.act = nn.SiLU()
 
     def forward(

@@ -48,8 +48,10 @@ class MMWindowAttention(nn.Module):
         window: Union[int, Tuple[int, int, int]],
         window_method: str,
         shared_qkv: bool,
+        operations=None,
     ):
         super().__init__()
+        ops = operations if operations is not None else nn
         dim = MMArg(vid_dim, txt_dim)
         inner_dim = heads * head_dim
         qkv_dim = inner_dim * 3
@@ -59,8 +61,8 @@ class MMWindowAttention(nn.Module):
         assert all(map(lambda v: isinstance(v, int) and v >= 0, self.window))
 
         self.head_dim = head_dim
-        self.proj_qkv = MMModule(nn.Linear, dim, qkv_dim, bias=qk_bias, shared_weights=shared_qkv)
-        self.proj_out = MMModule(nn.Linear, inner_dim, dim, shared_weights=shared_qkv)
+        self.proj_qkv = MMModule(ops.Linear, dim, qkv_dim, bias=qk_bias, shared_weights=shared_qkv)
+        self.proj_out = MMModule(ops.Linear, inner_dim, dim, shared_weights=shared_qkv)
         self.norm_q = MMModule(qk_norm, dim=head_dim, eps=qk_norm_eps, elementwise_affine=True)
         self.norm_k = MMModule(qk_norm, dim=head_dim, eps=qk_norm_eps, elementwise_affine=True)
         self.rope = RotaryEmbedding3d(dim=head_dim // 2) if qk_rope else None
@@ -181,6 +183,7 @@ class MMWindowTransformerBlock(nn.Module):
         shared_qkv: bool,
         shared_mlp: bool,
         mlp_type: str,
+        operations=None,
         **kwargs,
     ):
         super().__init__()
@@ -198,6 +201,7 @@ class MMWindowTransformerBlock(nn.Module):
             window=window,
             window_method=window_method,
             shared_qkv=shared_qkv,
+            operations=operations,
         )
         self.mlp_norm = MMModule(norm, dim=dim, eps=norm_eps, elementwise_affine=False)
         self.mlp = MMModule(
@@ -205,6 +209,7 @@ class MMWindowTransformerBlock(nn.Module):
             dim=dim,
             expand_ratio=expand_ratio,
             shared_weights=shared_mlp,
+            operations=operations,
         )
         self.ada = MMModule(ada, dim=dim, emb_dim=emb_dim, layers=["attn", "mlp"])
 

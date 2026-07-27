@@ -62,6 +62,12 @@ except ImportError:
 
 from .infer import VideoDiffusionInfer
 from ..common.config import create_object
+from ..optimization.int8_native_ops import (
+    checkpoint_is_hswq_int8,
+    get_hswq_mixed_precision_ops,
+    patch_ops_factory_device,
+    prepare_hswq_state_dict_for_comfy_ops,
+)
 from ..optimization.compatibility import (
     GGUF_AVAILABLE,
     GGMLQuantizationType,
@@ -137,6 +143,7 @@ def load_quantized_state_dict(checkpoint_path: str, device: torch.device = torch
             else:
                 # Re-raise if it's a different error (file corruption, etc.)
                 raise
+
     elif checkpoint_path.endswith('.gguf'):
         validate_gguf_availability(f"load {os.path.basename(checkpoint_path)}", debug)
         state = _load_gguf_state(
@@ -447,9 +454,20 @@ def prepare_model_structure(
     debug.log(f"Creating {model_type_upper} model structure on meta device", 
              category=model_type, force=True)
     debug.start_timer(f"{model_type}_structure")
+
+    # HSWQ INT8 safetensors need construction-time comfy.ops injection so
+    # load_state_dict can hit _load_quantized_module (not post-load replace).
+    create_kwargs = {}
+    if is_dit and checkpoint_is_hswq_int8(checkpoint_path):
+        create_kwargs["operations"] = get_hswq_mixed_precision_ops(torch.float16)
+        debug.log(
+            "HSWQ INT8 detected: injecting comfy.ops.mixed_precision_ops at DiT construction",
+            category=model_type,
+            force=True,
+        )
     
     with torch.device("meta"):
-        model = create_object(model_config)
+        model = create_object(model_config, **create_kwargs)
     
     debug.end_timer(f"{model_type}_structure", f"{model_type_upper} structure created")
     
@@ -458,6 +476,7 @@ def prepare_model_structure(
         runner.dit = model
         runner._dit_checkpoint = checkpoint_path
         runner._dit_block_swap_config = block_swap_config
+        runner._dit_hswq_int8_native = bool(create_kwargs)
     else:
         runner.vae = model  
         runner._vae_checkpoint = checkpoint_path
@@ -578,6 +597,23 @@ def _load_model_weights(model: torch.nn.Module, checkpoint_path: str, target_dev
     debug.start_timer(f"{model_type_lower}_weights_load")
     state = load_quantized_state_dict(checkpoint_path, target_device, debug)
     debug.end_timer(f"{model_type_lower}_weights_load", f"{model_type} weights loaded from file")
+
+    # HSWQ INT8: comfy.ops parses comfy_quant via .numpy() (CPU only), and
+    # meta-built mixed_precision Linear needs factory_kwargs["device"] set to
+    # the materialization target so QuantizedTensor is not left on meta.
+    if (
+        model_type_lower == "dit"
+        and not checkpoint_path.endswith(".gguf")
+        and checkpoint_is_hswq_int8(checkpoint_path)
+    ):
+        prepare_hswq_state_dict_for_comfy_ops(state)
+        n_patch = patch_ops_factory_device(model, target_device)
+        debug.log(
+            f"HSWQ INT8 load prep: comfy_quant→CPU, factory_kwargs device={target_device} "
+            f"({n_patch} modules)",
+            category=model_type_lower,
+            force=True,
+        )
     
     # Apply dtype conversion if requested
     if override_dtype is not None:

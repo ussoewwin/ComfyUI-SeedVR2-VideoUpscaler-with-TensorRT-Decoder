@@ -46,17 +46,19 @@ class NaMMAttention(nn.Module):
         rope_dim: int,
         shared_weights: bool,
         attention_mode: str = 'sdpa',
+        operations=None,
         **kwargs,
     ):
         super().__init__()
+        ops = operations if operations is not None else nn
         dim = MMArg(vid_dim, txt_dim)
         inner_dim = heads * head_dim
         qkv_dim = inner_dim * 3
         self.head_dim = head_dim
         self.proj_qkv = MMModule(
-            nn.Linear, dim, qkv_dim, bias=qk_bias, shared_weights=shared_weights
+            ops.Linear, dim, qkv_dim, bias=qk_bias, shared_weights=shared_weights
         )
-        self.proj_out = MMModule(nn.Linear, inner_dim, dim, shared_weights=shared_weights)
+        self.proj_out = MMModule(ops.Linear, inner_dim, dim, shared_weights=shared_weights)
         self.norm_q = MMModule(
             qk_norm,
             dim=head_dim,

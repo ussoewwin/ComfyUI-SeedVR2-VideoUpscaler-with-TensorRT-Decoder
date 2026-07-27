@@ -76,6 +76,7 @@ class NaDiT(nn.Module):
         txt_proj_type: Optional[str] = "linear",
         vid_out_norm: Optional[str] = None,
         attention_mode: str = 'sdpa',
+        operations=None,
         **kwargs,
     ):
         ada = get_ada_layer(ada)
@@ -87,21 +88,23 @@ class NaDiT(nn.Module):
         elif len(block_type) != num_layers:
             raise ValueError("The ``block_type`` list should equal to ``num_layers``.")
         super().__init__()
+        ops = operations if operations is not None else nn
         NaPatchIn, NaPatchOut = get_na_patch_layers(patch_type)
         self.vid_in = NaPatchIn(
             in_channels=vid_in_channels,
             patch_size=patch_size,
             dim=vid_dim,
+            operations=operations,
         )
         if not isinstance(txt_in_dim, int):
             self.txt_in = nn.ModuleList([])
             for in_dim in txt_in_dim:
                 txt_norm_layer = get_norm_layer(txt_in_norm)(txt_dim, norm_eps, True)
                 if txt_proj_type == "linear":
-                    txt_proj_layer = nn.Linear(in_dim, txt_dim)
+                    txt_proj_layer = ops.Linear(in_dim, txt_dim)
                 else:
                     txt_proj_layer = nn.Sequential(
-                        nn.Linear(in_dim, in_dim), nn.GELU("tanh"), nn.Linear(in_dim, txt_dim)
+                        ops.Linear(in_dim, in_dim), nn.GELU("tanh"), ops.Linear(in_dim, txt_dim)
                     )
                 torch.nn.init.constant_(txt_norm_layer.weight, txt_in_norm_scale_factor)
                 self.txt_in.append(
@@ -112,7 +115,7 @@ class NaDiT(nn.Module):
                 )
         else:
             self.txt_in = (
-                nn.Linear(txt_in_dim, txt_dim)
+                ops.Linear(txt_in_dim, txt_dim)
                 if txt_in_dim and txt_in_dim != txt_dim
                 else nn.Identity()
             )
@@ -120,6 +123,7 @@ class NaDiT(nn.Module):
             sinusoidal_dim=256,
             hidden_dim=max(vid_dim, txt_dim),
             output_dim=emb_dim,
+            operations=operations,
         )
 
         if window is None or isinstance(window[0], int):
@@ -158,6 +162,7 @@ class NaDiT(nn.Module):
                     rope_dim=rope_dim,
                     is_last_layer=(i == num_layers - 1),
                     attention_mode=attention_mode,
+                    operations=operations,
                     **kwargs,
                 )
                 for i in range(num_layers)
@@ -182,6 +187,7 @@ class NaDiT(nn.Module):
             out_channels=vid_out_channels,
             patch_size=patch_size,
             dim=vid_dim,
+            operations=operations,
         )
 
     def set_gradient_checkpointing(self, enable: bool):

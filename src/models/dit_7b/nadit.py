@@ -71,6 +71,7 @@ class NaDiT(nn.Module):
         temporal_window_size: int = None,
         temporal_shifted: bool = False,
         attention_mode: str = 'sdpa',
+        operations=None,
         **kwargs,
     ):
         ada = get_ada_layer(ada)
@@ -81,13 +82,15 @@ class NaDiT(nn.Module):
         elif len(block_type) != num_layers:
             raise ValueError("The ``block_type`` list should equal to ``num_layers``.")
         super().__init__()
+        ops = operations if operations is not None else nn
         self.vid_in = NaPatchIn(
             in_channels=vid_in_channels,
             patch_size=patch_size,
             dim=vid_dim,
+            operations=operations,
         )
         self.txt_in = (
-            nn.Linear(txt_in_dim, txt_dim)
+            ops.Linear(txt_in_dim, txt_dim)
             if txt_in_dim and txt_in_dim != txt_dim
             else nn.Identity()
         )
@@ -95,6 +98,7 @@ class NaDiT(nn.Module):
             sinusoidal_dim=256,
             hidden_dim=max(vid_dim, txt_dim),
             output_dim=emb_dim,
+            operations=operations,
         )
 
         if window is None or isinstance(window[0], int):
@@ -129,6 +133,7 @@ class NaDiT(nn.Module):
                     temporal_window_size=temporal_window_size[i],
                     temporal_shifted=temporal_shifted[i],
                     attention_mode=attention_mode,
+                    operations=operations,
                     **kwargs,
                 )
                 for i in range(num_layers)
@@ -138,6 +143,7 @@ class NaDiT(nn.Module):
             out_channels=vid_out_channels,
             patch_size=patch_size,
             dim=vid_dim,
+            operations=operations,
         )
 
         self.need_txt_repeat = block_type[0] in [
@@ -224,6 +230,8 @@ class NaDiTUpscaler(nn.Module):
         window_method: Optional[Tuple[str]] = None,
         temporal_window_size: int = None,
         temporal_shifted: bool = False,
+        attention_mode: str = 'sdpa',
+        operations=None,
         **kwargs,
     ):
         ada = get_ada_layer(ada)
@@ -234,13 +242,15 @@ class NaDiTUpscaler(nn.Module):
         elif len(block_type) != num_layers:
             raise ValueError("The ``block_type`` list should equal to ``num_layers``.")
         super().__init__()
+        ops = operations if operations is not None else nn
         self.vid_in = NaPatchIn(
             in_channels=vid_in_channels,
             patch_size=patch_size,
             dim=vid_dim,
+            operations=operations,
         )
         self.txt_in = (
-            nn.Linear(txt_in_dim, txt_dim)
+            ops.Linear(txt_in_dim, txt_dim)
             if txt_in_dim and txt_in_dim != txt_dim
             else nn.Identity()
         )
@@ -248,12 +258,14 @@ class NaDiTUpscaler(nn.Module):
             sinusoidal_dim=256,
             hidden_dim=max(vid_dim, txt_dim),
             output_dim=emb_dim,
+            operations=operations,
         )
 
         self.emb_scale = TimeEmbedding(
             sinusoidal_dim=256,
             hidden_dim=max(vid_dim, txt_dim),
             output_dim=emb_dim,
+            operations=operations,
         )
 
         if window is None or isinstance(window[0], int):
@@ -288,6 +300,7 @@ class NaDiTUpscaler(nn.Module):
                     temporal_window_size=temporal_window_size[i],
                     temporal_shifted=temporal_shifted[i],
                     attention_mode=attention_mode,
+                    operations=operations,
                     **kwargs,
                 )
                 for i in range(num_layers)
@@ -297,6 +310,7 @@ class NaDiTUpscaler(nn.Module):
             out_channels=vid_out_channels,
             patch_size=patch_size,
             dim=vid_dim,
+            operations=operations,
         )
 
         self.need_txt_repeat = block_type[0] in [

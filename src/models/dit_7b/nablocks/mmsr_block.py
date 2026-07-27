@@ -46,6 +46,7 @@ class NaSwinAttention(MMWindowAttention):
         window_method: str,
         shared_qkv: bool,
         attention_mode: str = 'sdpa',
+        operations=None,
         **kwargs,
     ):
         super().__init__(
@@ -60,6 +61,7 @@ class NaSwinAttention(MMWindowAttention):
             window=window,
             window_method=window_method,
             shared_qkv=shared_qkv,
+            operations=operations,
         )
         self.rope = NaRotaryEmbedding3d(dim=head_dim // 2) if qk_rope else None
         self.attn = FlashAttentionVarlen(attention_mode=attention_mode)

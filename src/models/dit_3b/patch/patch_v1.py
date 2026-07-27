@@ -30,11 +30,13 @@ class PatchIn(nn.Module):
         in_channels: int,
         patch_size: Union[int, Tuple[int, int, int]],
         dim: int,
+        operations=None,
     ):
         super().__init__()
+        ops = operations if operations is not None else nn
         t, h, w = _triple(patch_size)
         self.patch_size = t, h, w
-        self.proj = nn.Linear(in_channels * t * h * w, dim)
+        self.proj = ops.Linear(in_channels * t * h * w, dim)
 
     def forward(
         self,
@@ -55,11 +57,13 @@ class PatchOut(nn.Module):
         out_channels: int,
         patch_size: Union[int, Tuple[int, int, int]],
         dim: int,
+        operations=None,
     ):
         super().__init__()
+        ops = operations if operations is not None else nn
         t, h, w = _triple(patch_size)
         self.patch_size = t, h, w
-        self.proj = nn.Linear(dim, out_channels * t * h * w)
+        self.proj = ops.Linear(dim, out_channels * t * h * w)
 
     def forward(
         self,

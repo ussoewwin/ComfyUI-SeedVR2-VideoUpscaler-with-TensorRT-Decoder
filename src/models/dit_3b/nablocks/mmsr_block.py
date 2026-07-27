@@ -48,6 +48,7 @@ class NaMMSRTransformerBlock(nn.Module):
         rope_dim: int,
         is_last_layer: bool,
         attention_mode: str = 'sdpa',
+        operations=None,
         **kwargs,
     ):
         super().__init__()
@@ -66,6 +67,7 @@ class NaMMSRTransformerBlock(nn.Module):
             rope_dim=rope_dim,
             shared_weights=shared_weights,
             attention_mode=attention_mode,
+            operations=operations,
             window=kwargs.pop("window", None),
             window_method=kwargs.pop("window_method", None),
         )
@@ -76,7 +78,8 @@ class NaMMSRTransformerBlock(nn.Module):
             dim=dim,
             expand_ratio=expand_ratio,
             shared_weights=shared_weights,
-            vid_only=is_last_layer
+            vid_only=is_last_layer,
+            operations=operations,
         )
         self.ada = MMModule(ada, dim=dim, emb_dim=emb_dim, layers=["attn", "mlp"], shared_weights=shared_weights, vid_only=is_last_layer)
         self.is_last_layer = is_last_layer

@@ -30,11 +30,13 @@ class MLP(nn.Module):
         self,
         dim: int,
         expand_ratio: int,
+        operations=None,
     ):
         super().__init__()
-        self.proj_in = nn.Linear(dim, dim * expand_ratio)
+        ops = operations if operations is not None else nn
+        self.proj_in = ops.Linear(dim, dim * expand_ratio)
         self.act = nn.GELU("tanh")
-        self.proj_out = nn.Linear(dim * expand_ratio, dim)
+        self.proj_out = ops.Linear(dim * expand_ratio, dim)
 
     def forward(self, x: torch.FloatTensor) -> torch.FloatTensor:
         x = self.proj_in(x)
@@ -49,13 +51,15 @@ class SwiGLUMLP(nn.Module):
         dim: int,
         expand_ratio: int,
         multiple_of: int = 256,
+        operations=None,
     ):
         super().__init__()
+        ops = operations if operations is not None else nn
         hidden_dim = int(2 * dim * expand_ratio / 3)
         hidden_dim = multiple_of * ((hidden_dim + multiple_of - 1) // multiple_of)
-        self.proj_in_gate = nn.Linear(dim, hidden_dim, bias=False)
-        self.proj_out = nn.Linear(hidden_dim, dim, bias=False)
-        self.proj_in = nn.Linear(dim, hidden_dim, bias=False)
+        self.proj_in_gate = ops.Linear(dim, hidden_dim, bias=False)
+        self.proj_out = ops.Linear(hidden_dim, dim, bias=False)
+        self.proj_in = ops.Linear(dim, hidden_dim, bias=False)
 
     def forward(self, x: torch.FloatTensor) -> torch.FloatTensor:
         x = self.proj_out(F.silu(self.proj_in_gate(x)) * self.proj_in(x))
