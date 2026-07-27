@@ -1,7 +1,7 @@
-# SeedVR2 Video Upscaler — HSWQ INT8 Native Inference Guide
+# SeedVR2 Video Upscaler — INT8 Native Inference Guide
 
 対象カスタムノード: `ComfyUI/custom_nodes/seedvr2_videoupscaler`  
-（本解説は当該カスタムノードツリーの修正について述べる。別リポジトリのミラーは対象外。）
+（本解説は **SeedVR2 の DiT INT8 対応** について述べる。本カスタムノードツリー以外は対象外。）
 
 ---
 
@@ -9,7 +9,7 @@
 
 ### 問題
 
-HSWQ 形式の SeedVR2 DiT INT8 重み（`int8_tensorwise` + `comfy_quant` / `weight_scale`）を、従来どおり **ロード後に Linear を差し替える**（GGUF 系と同様の post-load replace）だけでは、ComfyUI の `comfy.ops._load_quantized_module` が走らない。結果として INT8 を **推論前に FP16 へ全面展開**する経路に落ち、VRAM 削減の目的を失う。
+SeedVR2 DiT の INT8 重み（`int8_tensorwise` + `comfy_quant` / `weight_scale`）を、従来どおり **ロード後に Linear を差し替える**（GGUF 系と同様の post-load replace）だけでは、ComfyUI の `comfy.ops._load_quantized_module` が走らない。結果として INT8 を **推論前に FP16 へ全面展開**する経路に落ち、VRAM 削減の目的を失う。
 
 ### 方針
 
@@ -24,8 +24,8 @@ HSWQ 形式の SeedVR2 DiT INT8 重み（`int8_tensorwise` + `comfy_quant` / `we
 ### データ流（要約）
 
 ```
-HSWQ INT8 .safetensors
-  → checkpoint_is_hswq_int8()
+SeedVR2 INT8 DiT .safetensors
+  → checkpoint_is_hswq_int8()   # int8_tensorwise 検出
   → create_object(..., operations=mixed_precision_ops(...))  # meta 上で構築
   → prepare_hswq_state_dict_for_comfy_ops() + patch_ops_factory_device()
   → load_state_dict → comfy.ops._load_quantized_module
@@ -48,7 +48,7 @@ HSWQ INT8 .safetensors
 | パス | 役割 |
 |------|------|
 | `src/common/config.py` | `create_object` が `**extra_kwargs`（`operations`）をコンストラクタへ渡す |
-| `src/core/model_loader.py` | HSWQ 検出・ops 注入・load 前 prep |
+| `src/core/model_loader.py` | INT8（`int8_tensorwise`）検出・ops 注入・load 前 prep |
 | `src/utils/model_registry.py` | INT8 モデル名登録と 7B 設定解決 |
 | `src/models/dit_3b/nadit.py` | `operations` 伝播 |
 | `src/models/dit_3b/mlp.py` | `ops.Linear` |
@@ -75,9 +75,9 @@ HSWQ INT8 .safetensors
 
 ```python
 """
-HSWQ INT8 native inference via ComfyUI comfy.ops construction-time injection.
+SeedVR2 INT8 native inference via ComfyUI comfy.ops construction-time injection.
 
-HSWQ safetensors carry ``comfy_quant`` + ``weight_scale``. Native VRAM-saving
+INT8 safetensors carry ``comfy_quant`` + ``weight_scale``. Native VRAM-saving
 load requires Linear modules that already implement
 ``_load_from_state_dict`` → ``comfy.ops._load_quantized_module`` at
 ``load_state_dict`` time. That is provided by
@@ -191,10 +191,10 @@ def patch_ops_factory_device(model: torch.nn.Module, device: torch.device) -> in
 """
 SeedVR2 Native INT8 Benchmark (construction-time comfy.ops injection)
 =====================================================================
-Compare community FP16 SeedVR2 DiT vs HSWQ native INT8 (int8_tensorwise,
+Compare community FP16 SeedVR2 DiT vs native INT8 (int8_tensorwise,
 optional ConvRot) through numz SeedVR2_VideoUpscaler.
 
-HSWQ INT8 safetensors keep comfy_quant + weight_scale. The videoupscaler path
+INT8 safetensors keep comfy_quant + weight_scale. The videoupscaler path
 injects comfy.ops.mixed_precision_ops at DiT construction so load_state_dict
 hits _load_quantized_module (QuantizedTensor stays INT8 in VRAM).
 
@@ -210,11 +210,11 @@ Path layout (no hardcoded drive letters — works for any install):
       ComfyUI root  = nearest ancestor that contains comfy/ops.py
       model_dir     = <ComfyUI>/models/SEEDVR2  (default)
 
-  Layout B — HSWQ repository twin
-    <hswq>/seedvr2_videoupscaler/seedvr2_int8_bench.py
-    or <hswq>/benchmark/seedvr2_int8_bench.py
-      seedvr2 root  = <hswq>/seedvr2_videoupscaler
-      ComfyUI root  = <hswq>/ComfyUI-master
+  Layout B — optional adjacent monorepo (not required for this custom node)
+    <parent>/seedvr2_videoupscaler/seedvr2_int8_bench.py
+    or <parent>/benchmark/seedvr2_int8_bench.py
+      seedvr2 root  = <parent>/seedvr2_videoupscaler
+      ComfyUI root  = <parent>/ComfyUI-master
       model_dir     = <ComfyUI>/models/SEEDVR2 when present
 
 Example (from custom_nodes/seedvr2_videoupscaler, filenames under models/SEEDVR2):
@@ -282,7 +282,7 @@ def _discover_defaults() -> tuple[Path, Path, Path | None, str]:
         comfy = _find_comfy_root(SCRIPT_DIR)
         layout = "comfyui_custom_node"
         if comfy is None:
-            # HSWQ twin: ComfyUI-master sits next to seedvr2_videoupscaler/.
+            # Adjacent tree: ComfyUI-master sits next to seedvr2_videoupscaler/.
             sibling = SCRIPT_DIR.parent / "ComfyUI-master"
             if (sibling / "comfy" / "ops.py").is_file():
                 comfy = sibling
@@ -303,7 +303,7 @@ def _discover_defaults() -> tuple[Path, Path, Path | None, str]:
                     model_dir = host_models
         return seed, comfy, (model_dir if model_dir.is_dir() else None), layout
 
-    # Layout B: this file lives under hswq/benchmark/ (or similar).
+    # Layout B: this file lives under an adjacent benchmark/ (or similar).
     repo = SCRIPT_DIR.parent
     seed = repo / "seedvr2_videoupscaler"
     comfy = repo / "ComfyUI-master"
@@ -580,7 +580,7 @@ def run_branch(
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="SeedVR2 native INT8 bench (FP16 vs HSWQ INT8 via construction-time ops)"
+        description="SeedVR2 native INT8 bench (FP16 vs INT8 via construction-time ops)"
     )
     parser.add_argument(
         "--fp16",
@@ -590,7 +590,7 @@ def main() -> int:
     parser.add_argument(
         "--int8",
         required=True,
-        help="HSWQ INT8 SeedVR2 DiT safetensors (filename or path)",
+        help="SeedVR2 INT8 DiT safetensors (filename or path)",
     )
     parser.add_argument(
         "--vae",
@@ -702,9 +702,9 @@ def main() -> int:
 
     if not checkpoint_is_hswq_int8(str(int8_path)):
         raise RuntimeError(
-            f"--int8 does not look like HSWQ int8_tensorwise: {int8_path}"
+            f"--int8 does not look like int8_tensorwise: {int8_path}"
         )
-    print(f"  [BENCH] HSWQ INT8 marker OK: {int8_name}")
+    print(f"  [BENCH] INT8 marker OK: {int8_name}")
 
     if vae_name != _DEFAULT_VAE:
         print(
@@ -922,7 +922,7 @@ def create_object(config: DictConfig, **extra_kwargs) -> Any:
       args: as_config | as_params (default to as_config)
 
     ``extra_kwargs`` are merged at construction time only (e.g. ``operations``
-    for ComfyUI ``comfy.ops`` HSWQ INT8 injection). Not stored in YAML.
+    for ComfyUI ``comfy.ops`` INT8 injection). Not stored in YAML.
     """
     
     item = import_item(
@@ -1400,13 +1400,13 @@ def prepare_model_structure(
              category=model_type, force=True)
     debug.start_timer(f"{model_type}_structure")
 
-    # HSWQ INT8 safetensors need construction-time comfy.ops injection so
+    # SeedVR2 INT8 safetensors need construction-time comfy.ops injection so
     # load_state_dict can hit _load_quantized_module (not post-load replace).
     create_kwargs = {}
     if is_dit and checkpoint_is_hswq_int8(checkpoint_path):
         create_kwargs["operations"] = get_hswq_mixed_precision_ops(torch.float16)
         debug.log(
-            "HSWQ INT8 detected: injecting comfy.ops.mixed_precision_ops at DiT construction",
+            "SeedVR2 INT8 detected: injecting comfy.ops.mixed_precision_ops at DiT construction",
             category=model_type,
             force=True,
         )
@@ -1543,7 +1543,7 @@ def _load_model_weights(model: torch.nn.Module, checkpoint_path: str, target_dev
     state = load_quantized_state_dict(checkpoint_path, target_device, debug)
     debug.end_timer(f"{model_type_lower}_weights_load", f"{model_type} weights loaded from file")
 
-    # HSWQ INT8: comfy.ops parses comfy_quant via .numpy() (CPU only), and
+    # INT8: comfy.ops parses comfy_quant via .numpy() (CPU only), and
     # meta-built mixed_precision Linear needs factory_kwargs["device"] set to
     # the materialization target so QuantizedTensor is not left on meta.
     if (
@@ -1554,7 +1554,7 @@ def _load_model_weights(model: torch.nn.Module, checkpoint_path: str, target_dev
         prepare_hswq_state_dict_for_comfy_ops(state)
         n_patch = patch_ops_factory_device(model, target_device)
         debug.log(
-            f"HSWQ INT8 load prep: comfy_quant→CPU, factory_kwargs device={target_device} "
+            f"INT8 load prep: comfy_quant→CPU, factory_kwargs device={target_device} "
             f"({n_patch} modules)",
             category=model_type_lower,
             force=True,
@@ -1993,7 +1993,7 @@ MODEL_REGISTRY = {
     "seedvr2_ema_7b-Q4_K_M.gguf": ModelInfo(repo="AInVFX/SeedVR2_comfyUI", size="7B", precision="Q4_K_M", sha256="db9cb2ad90ebd40d2e8c29da2b3fc6fd03ba87cd58cbadceccca13ad27162789"),
     "seedvr2_ema_7b_fp8_e4m3fn_mixed_block35_fp16.safetensors": ModelInfo(repo="AInVFX/SeedVR2_comfyUI", size="7B", precision="fp8_e4m3fn_mixed_block35_fp16", sha256="3d68b5ec0b295ae28092e355c8cad870edd00b817b26587d0cb8f9dd2df19bb2"),
     "seedvr2_ema_7b_fp16.safetensors": ModelInfo(size="7B", precision="fp16", sha256="7b8241aa957606ab6cfb66edabc96d43234f9819c5392b44d2492d9f0b0bbe4a"),
-    # HSWQ INT8 (int8_tensorwise + ConvRot) — native INT8 inference target (VRAM-saving path)
+    # INT8 (int8_tensorwise + ConvRot) — native INT8 inference target (VRAM-saving path)
     "seedvr2_7b_int8_convrot.safetensors": ModelInfo(size="7B", precision="int8_tensorwise_convrot"),
     
     # 7B sharp variants
@@ -2023,7 +2023,7 @@ def resolve_dit_config_folder(dit_model: str) -> str:
     Resolve configs_7b vs configs_3b from registry size and/or filename.
 
     Filename substring \"7b\"/\"3b\" is the historical rule. Registry size is used
-    when the model is registered (including HSWQ INT8 names). Prefer explicit
+    when the model is registered (including INT8 model names). Prefer explicit
     7b/3b tokens in the basename so untagged temp names do not silently pick 3B.
     """
     info = MODEL_REGISTRY.get(dit_model)
@@ -4154,28 +4154,28 @@ class MMWindowTransformerBlock(nn.Module):
 
 ## ④ その意味
 
-### `int8_native_ops.py` — HSWQ と comfy.ops の橋渡し
+### `int8_native_ops.py` — SeedVR2 INT8 と comfy.ops の橋渡し
 
 | 関数 | 意味 |
 |------|------|
-| `checkpoint_is_hswq_int8` | safetensors を開いて `*.comfy_quant` を読み、JSON の `format` が `int8_tensorwise` なら HSWQ INT8 と判定する。拡張子やファイル名推測ではない。 |
+| `checkpoint_is_hswq_int8` | safetensors を開いて `*.comfy_quant` を読み、JSON の `format` が `int8_tensorwise` なら SeedVR2 INT8 対象と判定する。拡張子やファイル名推測ではない。 |
 | `get_hswq_mixed_precision_ops` | `comfy.ops.mixed_precision_ops(quant_config={}, compute_dtype=fp16)` を返す。空の `quant_config` により、マーカー付き層だけ QuantizedTensor、それ以外は通常 Parameter になる。 |
 | `prepare_hswq_state_dict_for_comfy_ops` | `comfy_quant` テンソルを CPU に移す。`layer_conf.numpy()` は CUDA テンソルでは失敗するため必須。 |
 | `patch_ops_factory_device` | meta 構築時に `factory_kwargs["device"]` が空/meta のままだと QuantizedTensor が meta に残る。実デバイスを書き込む。 |
 | `resolve_linear_ops` | DiT サブモジュール用ヘルパ（`operations` または `torch.nn`）。 |
 
 **なぜ post-load Linear replace では足りないか**  
-GGUF 経路は「量子化バッファを独自に持つ Linear」へ後から差し替える。HSWQ / `comfy_quant` は **state_dict ロード時** に `comfy.ops` 側の `_load_from_state_dict` → `_load_quantized_module` が必要。後差し替えではこのフックに乗らない。
+GGUF 経路は「量子化バッファを独自に持つ Linear」へ後から差し替える。`comfy_quant` 付き SeedVR2 INT8 は **state_dict ロード時** に `comfy.ops` 側の `_load_from_state_dict` → `_load_quantized_module` が必要。後差し替えではこのフックに乗らない。
 
 ### `config.create_object(..., **extra_kwargs)` — YAML を汚さず ops を注入
 
-YAML の `__object__` はそのままに、構築時だけ `operations=` を渡す。FP16 / FP8 / GGUF の既存設定ファイルを変更せず、HSWQ INT8 のときだけ注入できる。
+YAML の `__object__` はそのままに、構築時だけ `operations=` を渡す。FP16 / FP8 / GGUF の既存設定ファイルを変更せず、SeedVR2 INT8 DiT のときだけ注入できる。
 
 ### `model_loader.py` — 検出 → 構築注入 → ロード前 prep
 
-1. `prepare_model_structure`: DiT かつ HSWQ INT8 なら `create_kwargs["operations"] = get_hswq_mixed_precision_ops(fp16)`。`torch.device("meta")` 下で `create_object`。  
+1. `prepare_model_structure`: DiT かつ `int8_tensorwise` なら `create_kwargs["operations"] = get_hswq_mixed_precision_ops(fp16)`。`torch.device("meta")` 下で `create_object`。  
 2. `_load_and_assign_weights`（相当）: ロードした state に対し `prepare_hswq_state_dict_for_comfy_ops` と `patch_ops_factory_device`。その後通常の `load_state_dict`。  
-3. GGUF 分岐とは独立。HSWQ は safetensors + comfy.ops 経路。
+3. GGUF 分岐とは独立。INT8 は safetensors + comfy.ops 経路。
 
 ### DiT 各モジュールの `operations=None` / `ops.Linear`
 
@@ -4188,7 +4188,7 @@ YAML の `__object__` はそのままに、構築時だけ `operations=` を渡�
 
 ### `seedvr2_int8_bench.py`
 
-カスタムノード配置（Layout A）または隣接 HSWQ ツリー（Layout B）から ComfyUI 本体と SeedVR2 を解決し、FP16 DiT と HSWQ native INT8 DiT を同一条件で比較するベンチ。本番ノードと同じ `model_loader` / `int8_native_ops` 経路を通す。
+本カスタムノード配置から ComfyUI 本体と SeedVR2 を解決し、FP16 DiT と native INT8 DiT を同一条件で比較するベンチ。本番ノードと同じ `model_loader` / `int8_native_ops` 経路を通す。
 
 ### 運用上の注意
 
