@@ -17,7 +17,8 @@ Environment assumed: RTX 50-series (sm_120, Blackwell), 16 GB VRAM, WDDM,
 `torch.compile` active with cudagraphs disabled.
 
 Related guides: `md/SEEDVR2_NVFP4_AND_TORCH_COMPILE_GUIDE.md`,
-`md/SEEDVR2_INT8_NATIVE_OPS_GUIDE.md`.
+`md/SEEDVR2_INT8_NATIVE_OPS_GUIDE.md`,
+`md/SEEDVR2_WINDOWS_PARALLEL_COMPILE_FIX.md`.
 
 ---
 
@@ -99,28 +100,54 @@ Related guides: `md/SEEDVR2_NVFP4_AND_TORCH_COMPILE_GUIDE.md`,
 - ComfyUI core enables benchmark only under `--fast AutoTune`
   (`comfy/model_management.py:540`), so with default flags every VAE conv
   runs with heuristic algorithm selection.
-- Proposal: set `torch.backends.cudnn.benchmark = True` when the SeedVR2
-  runner initializes (and optionally restore it afterwards). With tiling
-  enabled, shape count is bounded, so the per-shape autotune cost is paid
-  once. Expected: measurable VAE encode/decode speedup, zero quality impact.
+- **Implemented (2026-07-28, commit `5f2a472`):** `video_upscaler.py` saves
+  the caller's value, sets `torch.backends.cudnn.benchmark = True` for the
+  duration of the run, and restores it in `finally`. With tiling enabled,
+  shape count is bounded, so the per-shape autotune cost is paid once.
+  Expected: measurable VAE encode/decode speedup, zero quality impact.
 
-### 2.2 Uniform 4-frame temporal slices in the VAE
+### 2.2 Uniform temporal slices in the VAE (implemented)
 
-- `attn_video_vae.py:1257-1266`: the first temporal slice is
-  `cat(first_frame, slice)` = 5 frames, subsequent slices are 4 frames
-  (`memory_state` INITIALIZING vs ACTIVE). With `dynamic=False` this creates
-  two shape families per spatial shape — doubling compile variants and peak
-  shape bookkeeping.
-- Normalizing to uniform 4-frame slices would halve compile variants and
-  first-run compile time.
-- Risk: touches causal-conv boundary conditions; needs visual validation of
-  first-batch output before adoption.
+- Was: the first temporal chunk was `cat(first, slice0)` (INITIALIZING) and
+  the remaining slices were uniform (ACTIVE) — e.g. a 5-frame head chunk
+  plus 4-frame chunks. With `dynamic=False` this created an extra shape
+  family per spatial shape, doubling compile variants.
+- **Implemented (2026-07-28, commit `5f2a472`):** `attn_video_vae.py` now
+  encodes/decodes the first frame/latent alone (INITIALIZING) and every
+  remaining chunk as a uniform `slicing_sample_min_size`/`slicing_latent_min_size`
+  chunk (ACTIVE) — one uniform shape family instead of the first/rest pair.
+- Correctness: traced window-by-window for the causal k=3/s=2 temporal
+  convs — the kernel−stride cache carry makes `[1, N, N, …]` chunking
+  element-wise identical to `[1+N, N, …]`; totals match (2n+1 latents from
+  4n+1 frames). Same convention as the upstream diffusers CogVideoX VAE.
+- Remaining validation: visual check of first-batch output on a real run
+  (causal boundary); the math says identical, so any visible seam would
+  indicate an implementation bug elsewhere, not a design flaw.
 
 ### 2.3 `channels_last` for the VAE — low priority
 
 - Could help conv tensor-core utilization in fp16, but `cudnn.benchmark`
   (2.1) captures most of the same win without layout risk. Skip unless
   profiling shows conv-bound VAE time after 2.1.
+
+### 2.4 Parallel inductor compile on Windows (implemented)
+
+- Was: on win32, stock torch forces `compile_threads = 1` and its default
+  `worker_start_method = "subprocess"` pool is broken (sidecar calls
+  `multiprocessing.get_context("fork")`, which does not exist on Windows),
+  so every cold-cache compile ran serially — the pre-decode compile took
+  ~9 minutes with the GPU idle.
+- **Implemented (2026-07-28, commit `5f2a472`):** `fix_inductor.py` sets
+  `compile_threads = min(8, cpu_count)` and `worker_start_method = "spawn"`
+  (spawn works on Windows; ComfyUI `main.py` is `__main__`-guarded), with
+  `TORCHINDUCTOR_COMPILE_THREADS` / `TORCHINDUCTOR_WORKER_START` respected
+  as opt-outs. Both knobs are excluded from the inductor cache key, so warm
+  caches stay valid.
+- Spawn workers create partial CUDA contexts during autotune, so
+  `generation_phases.py` calls `shutdown_compile_workers()` once after each
+  phase's first batch (where all compilation provably happens) to release
+  their VRAM before the remaining batches and the next phase.
+- Full write-up: `md/SEEDVR2_WINDOWS_PARALLEL_COMPILE_FIX.md`.
 
 ---
 
@@ -149,10 +176,10 @@ Related guides: `md/SEEDVR2_NVFP4_AND_TORCH_COMPILE_GUIDE.md`,
 | NVFP4 DiT checkpoint | DiT loader node | ~4x weight VRAM cut + native matmul |
 | `mode = max-autotune-no-cudagraphs` | Compile settings node | Autotune w/o graph pools (current) |
 | `uniform_batch_size = True` | Upscaler node | Bounded compile variants |
-| `cudnn.benchmark = True` | Code edit (2.1) | Free VAE conv speedup |
+| `cudnn.benchmark = True` | Implemented (2.1) | Free VAE conv speedup |
 
 Optional once the above is stable: raise `batch_size` to spend the freed
-VRAM on throughput; consider 2.2 only if first-run compile time matters.
+VRAM on throughput.
 
 ---
 
@@ -163,7 +190,10 @@ VRAM on throughput; consider 2.2 only if first-run compile time matters.
    `SageAttn: v2 ✓` in the debug banner.
 2. Tiling: enable encode+decode tiling, watch for tile seams (raise overlap
    if visible); confirm VRAM peak drop in the phase memory report.
-3. cudnn.benchmark edit: time VAE encode/decode phase before/after on an
-   identical clip and seed.
-4. Any 2.2 experiment: validate first-batch frames specifically (causal
-   boundary), then full-clip spot check.
+3. cudnn.benchmark (implemented, 2.1): time VAE encode/decode phase
+   before/after on an identical clip and seed.
+4. Uniform temporal slices (implemented, 2.2): validate first-batch frames
+   specifically (causal boundary), then full-clip spot check.
+5. Parallel compile (implemented, 2.4): on the next cold-cache run, confirm
+   the `[SeedVR2] Enabled parallel inductor compile` banner appears and the
+   first-batch compile time drops vs. the ~9-minute serial baseline.
