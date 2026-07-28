@@ -53,6 +53,14 @@ _REQUIRED_PACKAGES = [
 for pkg, imp in _REQUIRED_PACKAGES:
     ensure_package(pkg, imp)
 
+# Windows cp932: patch inductor jinja open(encoding=utf-8) before any torch.compile
+try:
+    from .src.core.fix_inductor import _fix_inductor_windows_encoding
+
+    _fix_inductor_windows_encoding()
+except Exception as _seedvr2_inductor_fix_err:  # noqa: BLE001
+    print(f"[SeedVR2] Warning: inductor Windows encoding fix skipped: {_seedvr2_inductor_fix_err}")
+
 from .src.optimization.compatibility import ensure_triton_compat  # noqa: F401
 from .src.interfaces import comfy_entrypoint, SeedVR2Extension
 

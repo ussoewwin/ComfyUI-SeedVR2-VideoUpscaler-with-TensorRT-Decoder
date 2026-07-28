@@ -43,6 +43,7 @@ from .model_loader import materialize_model
 from .alpha_upscaling import process_alpha_for_batch
 from .infer import VideoDiffusionInfer
 from ..common.seed import set_seed
+from ..optimization.nvfp4_native_ops import checkpoint_is_nvfp4
 from ..optimization.memory_manager import (
     cleanup_dit,
     cleanup_vae,
@@ -711,11 +712,25 @@ def upscale_all_batches(
             except StopIteration:
                 dit_dtype = ctx['compute_dtype']  # Fallback for meta device or empty model
             
-            # Use autocast if DiT dtype differs from compute dtype
-            # Skip autocast on MPS (CompatibleDiT already handles dtype conversion)
+            # Use autocast if DiT dtype differs from compute dtype.
+            # Skip autocast on MPS (CompatibleDiT already handles dtype conversion).
+            # Skip autocast for native NVFP4: ComfyUI UNet/Flux keeps activations in
+            # FP16/BF16 without wrapping the whole forward in autocast. Under autocast,
+            # LayerNorm/RMSNorm emit float32, and comfy_kitchen CUDA quantize_nvfp4
+            # rejects dtype code 0 (float32) — only FP16/BF16 (DISPATCH_HALF_DTYPE).
+            # Stock comfy.ops MixedPrecision Linear does not cast before from_float.
+            nvfp4_native = (
+                bool(getattr(runner, "_dit_comfy_quant_native", False))
+                and checkpoint_is_nvfp4(getattr(runner, "_dit_checkpoint", None))
+            )
             debug.start_timer(f"dit_inference_{upscale_idx+1}")
             with torch.no_grad():
-                if dit_dtype != ctx['compute_dtype'] and ctx['dit_device'].type != 'mps':
+                use_autocast = (
+                    not nvfp4_native
+                    and dit_dtype != ctx['compute_dtype']
+                    and ctx['dit_device'].type != 'mps'
+                )
+                if use_autocast:
                     with torch.autocast(ctx['dit_device'].type, ctx['compute_dtype'], enabled=True):
                         upscaled_latents = runner.inference(
                             noises=noises,
