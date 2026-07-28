@@ -42,14 +42,16 @@ MODEL_REGISTRY = {
     "seedvr2_ema_7b-Q4_K_M.gguf": ModelInfo(repo="AInVFX/SeedVR2_comfyUI", size="7B", precision="Q4_K_M", sha256="db9cb2ad90ebd40d2e8c29da2b3fc6fd03ba87cd58cbadceccca13ad27162789"),
     "seedvr2_ema_7b_fp8_e4m3fn_mixed_block35_fp16.safetensors": ModelInfo(repo="AInVFX/SeedVR2_comfyUI", size="7B", precision="fp8_e4m3fn_mixed_block35_fp16", sha256="3d68b5ec0b295ae28092e355c8cad870edd00b817b26587d0cb8f9dd2df19bb2"),
     "seedvr2_ema_7b_fp16.safetensors": ModelInfo(size="7B", precision="fp16", sha256="7b8241aa957606ab6cfb66edabc96d43234f9819c5392b44d2492d9f0b0bbe4a"),
-    # HSWQ INT8 (int8_tensorwise + ConvRot) — native INT8 inference (VRAM-saving path)
+    # HSWQ INT8 (int8_tensorwise + ConvRot) — native INT8 inference target (VRAM-saving path)
     "seedvr2_7b_int8_convrot.safetensors": ModelInfo(size="7B", precision="int8_tensorwise_convrot"),
+    "seedvr2_7b_nvfp4.safetensors": ModelInfo(size="7B", precision="nvfp4"),
     
     # 7B sharp variants
     "seedvr2_ema_7b_sharp-Q4_K_M.gguf": ModelInfo(repo="AInVFX/SeedVR2_comfyUI", size="7B", precision="Q4_K_M", variant="sharp", sha256="7aed800ac4eb8e0d18569a954c0ff35f5a1caa3ed5d920e66cc31405f75b6e69"),
     "seedvr2_ema_7b_sharp_fp8_e4m3fn_mixed_block35_fp16.safetensors": ModelInfo(repo="AInVFX/SeedVR2_comfyUI", size="7B", precision="fp8_e4m3fn_mixed_block35_fp16", variant="sharp", sha256="0d2c5b8be0fda94351149c5115da26aef4f4932a7a2a928c6f184dda9186e0be"),
     "seedvr2_ema_7b_sharp_fp16.safetensors": ModelInfo(size="7B", precision="fp16", variant="sharp", sha256="20a93e01ff24beaeebc5de4e4e5be924359606c356c9c51509fba245bd2d77dd"),
     "seedvr2_7b_sharp_int8_convrot.safetensors": ModelInfo(size="7B", precision="int8_tensorwise_convrot", variant="sharp"),
+    "seedvr2_7b_sharp_nvfp4.safetensors": ModelInfo(size="7B", precision="nvfp4", variant="sharp"),
     
     # VAE models
     "ema_vae_fp16.safetensors": ModelInfo(category="vae", precision="fp16", sha256="20678548f420d98d26f11442d3528f8b8c94e57ee046ef93dbb7633da8612ca1"),

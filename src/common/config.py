@@ -120,7 +120,7 @@ def create_object(config: DictConfig, **extra_kwargs) -> Any:
       args: as_config | as_params (default to as_config)
 
     ``extra_kwargs`` are merged at construction time only (e.g. ``operations``
-    for ComfyUI ``comfy.ops`` INT8 / NVFP4 injection). Not stored in YAML.
+    for ComfyUI ``comfy.ops`` HSWQ INT8 / NVFP4 injection). Not stored in YAML.
     """
     
     item = import_item(

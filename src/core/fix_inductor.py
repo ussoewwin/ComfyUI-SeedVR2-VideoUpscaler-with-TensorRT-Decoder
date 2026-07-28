@@ -150,6 +150,43 @@ def _patch_inductor_bmm_make_fallback_override() -> None:
         print(f"[SeedVR2] Warning: could not rebind graph.make_fallback: {e}")
 
 
+def _patch_inductor_parallel_compile_windows() -> None:
+    """
+    Enable parallel inductor/Triton compilation on Windows.
+
+    Stock torch hard-codes compile_threads=1 on win32, and its default
+    worker_start_method="subprocess" (SubprocPool sidecar) is broken on
+    Windows: the sidecar calls multiprocessing.get_context("fork"), which
+    does not exist on win32, so the pool never becomes ready and the first
+    compile stalls until the ready-timeout.
+
+    worker_start_method="spawn" works on Windows (verified: pool ready in
+    seconds, compiles complete). ComfyUI main.py is spawn-safe (guarded by
+    `if __name__ == "__main__"`).
+
+    Env overrides are respected: TORCHINDUCTOR_COMPILE_THREADS and
+    TORCHINDUCTOR_WORKER_START always win over these defaults.
+    """
+    if os.name != "nt":
+        return
+    try:
+        import torch._inductor.config as inductor_config
+
+        # win32 eagerly assigns compile_threads=1 at import (config.py:1373),
+        # not None — so treat both None (fbcode lazy init) and 1 (win32 forced
+        # default) as "not user-chosen". TORCHINDUCTOR_COMPILE_THREADS is the
+        # respected opt-out.
+        if ("TORCHINDUCTOR_COMPILE_THREADS" not in os.environ
+                and getattr(inductor_config, "compile_threads", None) in (None, 1)):
+            inductor_config.compile_threads = min(8, os.cpu_count() or 1)
+            print(f"[SeedVR2] Enabled parallel inductor compile: {inductor_config.compile_threads} threads")
+        if ("TORCHINDUCTOR_WORKER_START" not in os.environ
+                and getattr(inductor_config, "worker_start_method", None) == "subprocess"):
+            inductor_config.worker_start_method = "spawn"
+    except Exception as e:
+        print(f"[SeedVR2] Warning: Could not enable parallel inductor compile: {e}")
+
+
 def _fix_inductor_windows_encoding() -> None:
     """
     Harden torch inductor / cpp_extension for Japanese Windows (cp932).
@@ -180,6 +217,9 @@ def _fix_inductor_windows_encoding() -> None:
 
     # --- (0b) bmm make_fallback override (VAE compile assertion) ---
     _patch_inductor_bmm_make_fallback_override()
+
+    # --- (0c) parallel inductor compile (win32 default is serial + broken sidecar) ---
+    _patch_inductor_parallel_compile_windows()
 
     # --- (1) inductor cpp_builder ---
     try:

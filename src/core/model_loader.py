@@ -62,11 +62,6 @@ except ImportError:
 
 from .infer import VideoDiffusionInfer
 from ..common.config import create_object
-from ..optimization.compatibility import (
-    GGUF_AVAILABLE,
-    GGMLQuantizationType,
-    validate_gguf_availability
-)
 from ..optimization.int8_native_ops import (
     checkpoint_is_hswq_int8,
     get_hswq_mixed_precision_ops,
@@ -76,6 +71,11 @@ from ..optimization.int8_native_ops import (
 from ..optimization.nvfp4_native_ops import (
     checkpoint_is_nvfp4,
     get_nvfp4_mixed_precision_ops,
+)
+from ..optimization.compatibility import (
+    GGUF_AVAILABLE,
+    GGMLQuantizationType,
+    validate_gguf_availability
 )
 
 

@@ -1255,13 +1255,15 @@ class VideoAutoencoderKL(diffusers.AutoencoderKL):
         sp_size = get_sequence_parallel_world_size()
         if self.use_slicing and (x.shape[2] - 1) > self.slicing_sample_min_size * sp_size:
             x_slices = x[:, :, 1:].split(split_size=self.slicing_sample_min_size * sp_size, dim=2)
+            # Encode the first frame alone (INITIALIZING) so every remaining chunk is
+            # a uniform slicing_sample_min_size-frame chunk (ACTIVE). The causal conv
+            # cache (kernel-stride overlap + stride-phase remainder) makes this
+            # mathematically identical to cat(first, slice) chunking, while giving
+            # torch.compile one uniform shape family instead of a 5f/4f pair.
             encoded_slices = [
-                self._encode(
-                    torch.cat((x[:, :, :1], x_slices[0]), dim=2),
-                    memory_state=MemoryState.INITIALIZING,
-                )
+                self._encode(x[:, :, :1], memory_state=MemoryState.INITIALIZING)
             ]
-            for x_idx in range(1, len(x_slices)):
+            for x_idx in range(0, len(x_slices)):
                 encoded_slices.append(
                     self._encode(x_slices[x_idx], memory_state=MemoryState.ACTIVE)
                 )
@@ -1279,13 +1281,14 @@ class VideoAutoencoderKL(diffusers.AutoencoderKL):
         sp_size = get_sequence_parallel_world_size()
         if self.use_slicing and (z.shape[2] - 1) > self.slicing_latent_min_size * sp_size:
             z_slices = z[:, :, 1:].split(split_size=self.slicing_latent_min_size * sp_size, dim=2)
+            # Decode the first latent alone (INITIALIZING) so every remaining chunk is
+            # a uniform slicing_latent_min_size-latent chunk (ACTIVE). Same causal
+            # cache equivalence as slicing_encode; remove_head in Upsample3D still
+            # applies exactly once (INITIALIZING), keeping frame counts unchanged.
             decoded_slices = [
-                self._decode(
-                    torch.cat((z[:, :, :1], z_slices[0]), dim=2),
-                    memory_state=MemoryState.INITIALIZING
-                )
+                self._decode(z[:, :, :1], memory_state=MemoryState.INITIALIZING)
             ]
-            for z_idx in range(1, len(z_slices)):
+            for z_idx in range(0, len(z_slices)):
                 decoded_slices.append(
                     self._decode(z_slices[z_idx], memory_state=MemoryState.ACTIVE)
                 )

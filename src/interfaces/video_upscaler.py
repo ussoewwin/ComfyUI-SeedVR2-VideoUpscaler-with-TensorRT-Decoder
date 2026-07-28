@@ -398,6 +398,14 @@ class SeedVR2VideoUpscaler(io.ComfyNode):
                 "Please check the console output above for specific file failures and manual download instructions."
             )
         
+        # Enable the cuDNN autotuner for the duration of this run. Conv shapes are
+        # fixed within a run (uniform batches/tiles), so per-shape benchmark cost is
+        # paid once. init_torch() is unreachable from the ComfyUI runtime path and
+        # ComfyUI core only enables this under `--fast AutoTune`, so set it here and
+        # restore the caller's value afterwards.
+        prev_cudnn_benchmark = torch.backends.cudnn.benchmark
+        torch.backends.cudnn.benchmark = True
+
         try:
             # Initialize ComfyUI progress bar if available
             if ProgressBar is not None:
@@ -571,3 +579,5 @@ class SeedVR2VideoUpscaler(io.ComfyNode):
         except Exception as e:
             cleanup(dit_cache=dit_cache, vae_cache=vae_cache)
             raise e
+        finally:
+            torch.backends.cudnn.benchmark = prev_cudnn_benchmark
