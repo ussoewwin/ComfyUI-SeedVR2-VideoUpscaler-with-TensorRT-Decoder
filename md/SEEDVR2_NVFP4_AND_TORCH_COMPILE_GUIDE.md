@@ -2110,7 +2110,7 @@ def decode_all_batches(
     debug.log(f"Pre-allocating output tensor: {total_frames} frames, {true_w}x{true_h}px, {channels_str} ({required_gb:.2f}GB)", 
               category="setup", force=True)
     
-    # NumPy互換性を確保するため、compute_dtypeがbfloat16の場合はfloat16を使用
+    # Use float16 storage when compute_dtype is bfloat16 for NumPy compatibility
     storage_dtype = torch.float16 if ctx['compute_dtype'] == torch.bfloat16 else ctx['compute_dtype']
     ctx['final_video'] = torch.empty((total_frames, true_h, true_w, C), dtype=storage_dtype, device=target_device)
     
@@ -2236,14 +2236,13 @@ def decode_all_batches(
                 write_end = current_write_idx + batch_frames
             
             # Move sample to target device and write directly to final_video
-            # sampleをtarget_deviceに移動し、final_videoに直接書き込む
-            # final_videoのdtype（storage_dtype）を使用して一貫性を確保
+            # Use final_video dtype (storage_dtype) for consistency
             target_dtype = ctx['final_video'].dtype
             sample = manage_tensor(
                 tensor=sample,
                 target_device=target_device,
                 tensor_name=f"sample_{decode_idx+1}",
-                dtype=target_dtype,  # final_videoのdtype（float16）に合わせる
+                dtype=target_dtype,  # Match final_video dtype (e.g. float16)
                 debug=debug,
                 reason="writing to final_video",
                 indent_level=1
