@@ -9,6 +9,11 @@
 
 Fork release history for [ussoewwin/ComfyUI-SeedVR2_VideoUpscaler](https://github.com/ussoewwin/ComfyUI-SeedVR2_VideoUpscaler).
 
+## v1.4 — 2026-07-31
+
+- **Summary:** Register 3B HSWQ INT8 ConvRot and NVFP4 DiT packs in `MODEL_REGISTRY` (same native VRAM path as 7B), resolve 3B/7B config folders via registry size, and keep a durable `_dit_is_nvfp4` flag so NVFP4 autocast skip still works after materialize clears `_dit_checkpoint`.
+- **Release (GitHub):** https://github.com/ussoewwin/ComfyUI-SeedVR2_VideoUpscaler/releases/tag/v1.4
+
 ## v1.3 — 2026-07-28
 
 - **Summary:** Windows torch.compile / inductor runtime improvements: parallel inductor compile on win32, shut down compile workers after each phase’s first batch to free CUDA contexts, run-scoped `cudnn.benchmark`, and more uniform VAE temporal slices to reduce compile shape variants.
