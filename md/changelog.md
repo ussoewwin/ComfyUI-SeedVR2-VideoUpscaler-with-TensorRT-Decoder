@@ -11,7 +11,7 @@ Fork release history for [ussoewwin/ComfyUI-SeedVR2_VideoUpscaler](https://githu
 
 ## v1.4 — 2026-07-31
 
-- **Summary:** Register 3B HSWQ INT8 ConvRot and NVFP4 DiT packs in `MODEL_REGISTRY` (same native VRAM path as 7B), resolve 3B/7B config folders via registry size, and keep a durable `_dit_is_nvfp4` flag so NVFP4 autocast skip still works after materialize clears `_dit_checkpoint`.
+- **Summary:** Register 3B HSWQ INT8 ConvRot and NVFP4 DiT packs in `MODEL_REGISTRY` (same native VRAM path as 7B).
 - **Technical Details:** See [v1.4 Release Notes](../zhmd/v1.4.md) for complete explanation
 - **Release (GitHub):** https://github.com/ussoewwin/ComfyUI-SeedVR2_VideoUpscaler/releases/tag/v1.4
 

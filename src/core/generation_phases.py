@@ -43,6 +43,7 @@ from .model_loader import materialize_model
 from .alpha_upscaling import process_alpha_for_batch
 from .infer import VideoDiffusionInfer
 from ..common.seed import set_seed
+from ..optimization.nvfp4_native_ops import checkpoint_is_nvfp4
 from ..optimization.memory_manager import (
     cleanup_dit,
     cleanup_vae,
@@ -748,8 +749,10 @@ def upscale_all_batches(
             # LayerNorm/RMSNorm emit float32, and comfy_kitchen CUDA quantize_nvfp4
             # rejects dtype code 0 (float32) — only FP16/BF16 (DISPATCH_HALF_DTYPE).
             # Stock comfy.ops MixedPrecision Linear does not cast before from_float.
-            # Use durable _dit_is_nvfp4: materialize_model clears _dit_checkpoint.
-            nvfp4_native = bool(getattr(runner, "_dit_is_nvfp4", False))
+            nvfp4_native = (
+                bool(getattr(runner, "_dit_comfy_quant_native", False))
+                and checkpoint_is_nvfp4(getattr(runner, "_dit_checkpoint", None))
+            )
             debug.start_timer(f"dit_inference_{upscale_idx+1}")
             with torch.no_grad():
                 use_autocast = (

@@ -17,7 +17,8 @@ Path layout (no hardcoded drive letters — works for any install):
 
   Layout A — ComfyUI custom node (recommended for end users)
     <ComfyUI>/custom_nodes/seedvr2_videoupscaler/seedvr2_int8_bench.py
-      seedvr2 root  = this script's directory
+    or <ComfyUI>/custom_nodes/seedvr2_videoupscaler/benchmark/seedvr2_int8_bench.py
+      seedvr2 root  = package root (script dir, or its parent when under benchmark/)
       ComfyUI root  = nearest ancestor that contains comfy/ops.py
       model_dir     = <ComfyUI>/models/SEEDVR2  (default)
 
@@ -28,7 +29,7 @@ Path layout (no hardcoded drive letters — works for any install):
       ComfyUI root  = <hswq>/ComfyUI-master
       model_dir     = <ComfyUI>/models/SEEDVR2 when present
 
-Example (from custom_nodes/seedvr2_videoupscaler, filenames under models/SEEDVR2):
+Example (from custom_nodes/seedvr2_videoupscaler/benchmark):
 
   python seedvr2_int8_bench.py ^
     --fp16 seedvr2_ema_7b_fp16.safetensors ^
@@ -81,27 +82,37 @@ def _find_comfy_root(start: Path) -> Path | None:
     return None
 
 
+def _is_seedvr2_package_root(path: Path) -> bool:
+    return (path / "inference_cli.py").is_file() and (path / "src").is_dir()
+
+
 def _discover_defaults() -> tuple[Path, Path, Path | None, str]:
     """
     Resolve (seedvr2_root, comfy_root, default_model_dir, layout_name)
     without any absolute/drive-hardcoded paths.
     """
-    # Layout A: this file lives inside the SeedVR2 package root.
-    if (SCRIPT_DIR / "inference_cli.py").is_file() and (SCRIPT_DIR / "src").is_dir():
+    # Layout A: package root, or package/benchmark/ (this repo's layout).
+    if _is_seedvr2_package_root(SCRIPT_DIR):
         seed = SCRIPT_DIR
+    elif SCRIPT_DIR.name == "benchmark" and _is_seedvr2_package_root(SCRIPT_DIR.parent):
+        seed = SCRIPT_DIR.parent
+    else:
+        seed = None
+
+    if seed is not None:
         # Prefer real ComfyUI ancestor (custom_nodes/... layout).
-        comfy = _find_comfy_root(SCRIPT_DIR)
+        comfy = _find_comfy_root(seed)
         layout = "comfyui_custom_node"
         if comfy is None:
             # HSWQ twin: ComfyUI-master sits next to seedvr2_videoupscaler/.
-            sibling = SCRIPT_DIR.parent / "ComfyUI-master"
+            sibling = seed.parent / "ComfyUI-master"
             if (sibling / "comfy" / "ops.py").is_file():
                 comfy = sibling
                 layout = "hswq_seedvr2_package"
         if comfy is None:
             raise RuntimeError(
                 "Could not find ComfyUI root (comfy/ops.py) above "
-                f"{SCRIPT_DIR}, and sibling ComfyUI-master is missing. "
+                f"{seed}, and sibling ComfyUI-master is missing. "
                 "Install as custom_nodes/seedvr2_videoupscaler under a "
                 "ComfyUI tree, or pass --comfy_path."
             )
@@ -132,7 +143,9 @@ def _discover_defaults() -> tuple[Path, Path, Path | None, str]:
     raise RuntimeError(
         "Cannot discover SeedVR2 / ComfyUI layout from "
         f"{SCRIPT_DIR}. Place this script in "
-        "custom_nodes/seedvr2_videoupscaler/ or pass --seedvr2_path / --comfy_path."
+        "custom_nodes/seedvr2_videoupscaler/ or "
+        "custom_nodes/seedvr2_videoupscaler/benchmark/, "
+        "or pass --seedvr2_path / --comfy_path."
     )
 
 

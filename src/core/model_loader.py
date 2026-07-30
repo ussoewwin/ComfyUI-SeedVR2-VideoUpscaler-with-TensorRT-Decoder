@@ -507,8 +507,6 @@ def prepare_model_structure(
         runner._dit_checkpoint = checkpoint_path
         runner._dit_block_swap_config = block_swap_config
         runner._dit_comfy_quant_native = bool(create_kwargs)
-        # Durable after materialize clears _dit_checkpoint (generation_phases autocast skip).
-        runner._dit_is_nvfp4 = bool(create_kwargs) and checkpoint_is_nvfp4(checkpoint_path)
     else:
         runner.vae = model  
         runner._vae_checkpoint = checkpoint_path
