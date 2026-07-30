@@ -25,6 +25,10 @@ For details, refer to the official repository:
 
 https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler
 
+## Changelog
+
+- [md/changelog.md](md/changelog.md)
+
 ## 🙏 Credits
 
 This ComfyUI implementation is a collaborative project by **[NumZ](https://github.com/numz)** and **[AInVFX](https://www.youtube.com/@AInVFX)** (Adrien Toupet), based on the original [SeedVR2](https://github.com/ByteDance-Seed/SeedVR) by ByteDance Seed Team.
