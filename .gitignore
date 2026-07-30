@@ -3,7 +3,6 @@
 tests/
 .vscode/
 .cursor/
-benchmark/
 advanced_optimizations.py
 BENCHMARK_*
 environment.yml
