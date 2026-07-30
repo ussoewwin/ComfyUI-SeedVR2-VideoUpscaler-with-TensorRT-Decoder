@@ -4,7 +4,7 @@
 
 Official release of [SeedVR2](https://github.com/ByteDance-Seed/SeedVR) for ComfyUI that enables high-quality video and image upscaling.
 
-This repository is a fork of the official repository ([https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler](https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler)), created under the MIT license. It independently implements support for ConvRot INT8 and NVFP4 quantized models, along with VRAM-saving features.
+This repository is a fork of the official repository ([https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler](https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler)), created under the Apache 2.0 license. It independently implements support for ConvRot INT8 and NVFP4 quantized models, along with VRAM-saving features.
 
 [![SeedVR2 v2.5 Deep Dive Tutorial](https://img.youtube.com/vi/MBtWYXq_r60/maxresdefault.jpg)](https://youtu.be/MBtWYXq_r60)
 
