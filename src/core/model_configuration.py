@@ -77,6 +77,9 @@ from ..optimization.compatibility import (
 from ..optimization.blockswap import is_blockswap_enabled, validate_blockswap_config, apply_block_swap_to_dit, cleanup_blockswap
 from ..optimization.memory_manager import cleanup_dit, cleanup_vae
 from ..utils.constants import find_model_file
+from ..utils.model_registry import resolve_dit_config_folder
+from ..optimization.nvfp4_native_ops import checkpoint_is_nvfp4
+from ..optimization.int8_native_ops import checkpoint_is_hswq_int8
 from .fix_inductor import _fix_inductor_windows_encoding
 
 # Apply global configuration for torch._dynamo immediately upon import
@@ -771,9 +774,8 @@ def _create_new_runner(
     runner template is available or when model selection changes.
     
     Args:
-        dit_model: DiT model filename (determines config selection)
-                  - Contains "7b" → loads configs_7b/main.yaml
-                  - Otherwise → loads configs_3b/main.yaml
+        dit_model: DiT model filename (determines config selection via
+                  resolve_dit_config_folder — registry size and/or basename 7b/3b)
         vae_model: VAE model filename (stored for reference, not used in config selection)
         base_cache_dir: Base directory for model files (not used directly but passed for context)
         debug: Debug instance for logging and timing
@@ -789,9 +791,8 @@ def _create_new_runner(
              category="runner", force=True)
     
     debug.start_timer("config_load")
-    config_path = os.path.join(script_directory, 
-                              './configs_7b' if "7b" in dit_model else './configs_3b', 
-                              'main.yaml')
+    config_folder = resolve_dit_config_folder(os.path.basename(dit_model))
+    config_path = os.path.join(script_directory, config_folder, 'main.yaml')
     config = load_config(config_path)
     debug.end_timer("config_load", "Config loading")
     
@@ -1106,6 +1107,10 @@ def _setup_dit_model(
         runner.dit = cache_context['cached_dit']
         runner._dit_checkpoint = find_model_file(dit_model, base_cache_dir)
         runner._dit_model_name = dit_model
+        # Durable native-quant flags (survive _dit_checkpoint clear after materialize)
+        cp = runner._dit_checkpoint
+        runner._dit_is_nvfp4 = checkpoint_is_nvfp4(cp)
+        runner._dit_comfy_quant_native = runner._dit_is_nvfp4 or checkpoint_is_hswq_int8(cp)
         
         # Restore config attributes from model to runner (config travels with model)
         runner._dit_compile_args = getattr(runner.dit, '_config_compile', None)
