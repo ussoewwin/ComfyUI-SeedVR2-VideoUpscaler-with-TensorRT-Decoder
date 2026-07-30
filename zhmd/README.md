@@ -25,6 +25,10 @@
 
 https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler
 
+## 更新日志
+
+- [changelogzh.md](changelogzh.md)
+
 ## 🙏 致谢
 
 本 ComfyUI 实现由 **[NumZ](https://github.com/numz)** 与 **[AInVFX](https://www.youtube.com/@AInVFX)**（Adrien Toupet）协作完成，基于 ByteDance Seed Team 的原始 [SeedVR2](https://github.com/ByteDance-Seed/SeedVR)。
