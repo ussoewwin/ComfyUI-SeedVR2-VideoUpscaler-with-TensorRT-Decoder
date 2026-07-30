@@ -267,9 +267,9 @@ ComfyUI UNet/Flux 风格的 NVFP4 路径通常保持 FP16/BF16 激活，而不�
 
 ---
 
-## 6. Durable 修复全文（「恒久対策」/ autocast 跳过的持久化）
+## 6. Durable 修复全文（autocast 跳过的持久化）
 
-将请求中的「腹帯対策」理解为针对「checkpoint 被清空后 autocast 跳过失效」的 **durable / 永久** 修复（`_dit_is_nvfp4`）。
+本节是针对「checkpoint 被清空后 autocast 跳过失效」的 **durable / 永久** 修复（`_dit_is_nvfp4`）。
 
 ### 6.1 结构准备时设置标志 — `model_loader.py`
 

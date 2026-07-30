@@ -267,9 +267,9 @@ So the bug is **not** “3B lacks NVFP4 kernels”. It is **flag lifetime**: the
 
 ---
 
-## 6. Full text of the durable fix (“恒久対策” / autocast-skip durability)
+## 6. Full text of the durable fix (autocast-skip durability)
 
-Interpret “腹帯対策” in the request as the **durable / permanent** fix for the cleared-checkpoint autocast-skip bug (`_dit_is_nvfp4`).
+This section is the **durable / permanent** fix for the cleared-checkpoint autocast-skip bug (`_dit_is_nvfp4`).
 
 ### 6.1 Set flag when structure is prepared — `model_loader.py`
 
