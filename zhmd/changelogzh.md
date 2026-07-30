@@ -12,6 +12,7 @@
 ## v1.4 — 2026-07-31
 
 - **摘要：** 在 `MODEL_REGISTRY` 中登记 3B HSWQ INT8 ConvRot 与 NVFP4 DiT 权重包（与 7B 相同的原生显存路径）；按 registry 规格选择 3B/7B 配置目录；并保留 durable `_dit_is_nvfp4`，使 materialize 清空 `_dit_checkpoint` 之后 NVFP4 仍可跳过 autocast。
+- **技术详情：** 请参阅 [v1.4 发行说明](v1.4.md) 获取完整说明
 - **Release (GitHub):** https://github.com/ussoewwin/ComfyUI-SeedVR2_VideoUpscaler/releases/tag/v1.4
 
 ## v1.3 — 2026-07-28
