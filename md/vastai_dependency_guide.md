@@ -1,5 +1,12 @@
 # Comprehensive Guide to Dependency Errors in ComfyUI Cloud Environments
 
+<table align="center">
+  <tr>
+    <td align="center" bgcolor="#3478ca" width="88" height="36"><font color="#ffffff"><b>EN</b></font></td>
+    <td align="center" bgcolor="#e5e7eb" width="88" height="36"><a href="../zhmd/vastai_dependency_guide.md"><font color="#4b5563"><b>中文</b></font></a></td>
+  </tr>
+</table>
+
 This document provides a complete explanation of the `ModuleNotFoundError` issues often encountered when running SeedVR2 (and other custom nodes with heavy external dependencies) on cloud environments like Vast.ai or RunPod. It details the root causes and explains the automated code-level fix implemented in this repository.
 
 ---

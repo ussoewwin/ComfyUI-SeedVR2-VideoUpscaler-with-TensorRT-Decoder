@@ -1,5 +1,12 @@
 # SeedVR2 — Windows Parallel Inductor Compile Fix
 
+<table align="center">
+  <tr>
+    <td align="center" bgcolor="#3478ca" width="88" height="36"><font color="#ffffff"><b>EN</b></font></td>
+    <td align="center" bgcolor="#e5e7eb" width="88" height="36"><a href="../zhmd/SEEDVR2_WINDOWS_PARALLEL_COMPILE_FIX.md"><font color="#4b5563"><b>中文</b></font></a></td>
+  </tr>
+</table>
+
 Target custom node: `ComfyUI/custom_nodes/seedvr2_videoupscaler`
 Code commit: `a14db91b31c08bee62055e17521d4f1537bef03c`
 (`feat: NVFP4 DiT native ops and VAE torch.compile inductor fixes`)

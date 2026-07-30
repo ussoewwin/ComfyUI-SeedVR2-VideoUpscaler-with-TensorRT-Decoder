@@ -1,34 +1,34 @@
-# SeedVR2 Video Upscaler — INT8 Native Inference Guide
+# SeedVR2 Video Upscaler — INT8 原生推理指南
 
 <table align="center">
   <tr>
-    <td align="center" bgcolor="#3478ca" width="88" height="36"><font color="#ffffff"><b>EN</b></font></td>
-    <td align="center" bgcolor="#e5e7eb" width="88" height="36"><a href="../zhmd/SEEDVR2_INT8_NATIVE_OPS_GUIDE.md"><font color="#4b5563"><b>中文</b></font></a></td>
+    <td align="center" bgcolor="#e5e7eb" width="88" height="36"><a href="../md/SEEDVR2_INT8_NATIVE_OPS_GUIDE.md"><font color="#4b5563"><b>EN</b></font></a></td>
+    <td align="center" bgcolor="#3478ca" width="88" height="36"><font color="#ffffff"><b>中文</b></font></td>
   </tr>
 </table>
 
-Target custom node: `ComfyUI/custom_nodes/seedvr2_videoupscaler`  
-(This guide covers **SeedVR2 DiT INT8 support** only. Other trees are out of scope.)
+目标自定义节点：`ComfyUI/custom_nodes/seedvr2_videoupscaler`  
+（本指南仅覆盖 **SeedVR2 DiT INT8 支持**。其他树不在范围内。）
 
 ---
 
-## 1. Overview
+## 1. 概述
 
-### Problem
+### 问题
 
-Loading SeedVR2 DiT INT8 weights (`int8_tensorwise` + `comfy_quant` / `weight_scale`) with a **post-load Linear replace** (GGUF-style) never runs ComfyUI `comfy.ops._load_quantized_module`. INT8 then **fully expands to FP16 before inference**, so VRAM savings are lost.
+用 **加载后 Linear 替换**（GGUF 风格）加载 SeedVR2 DiT INT8 权重（`int8_tensorwise` + `comfy_quant` / `weight_scale`）时，永远不会走 ComfyUI 的 `comfy.ops._load_quantized_module`。INT8 会在推理前**完全展开为 FP16**，显存节省随之丢失。
 
-### Approach
+### 做法
 
-1. Inject `comfy.ops.mixed_precision_ops` into NaDiT at **construction time**.
-2. Make DiT `nn.Linear` layers swappable to **`operations.Linear`** (= comfy.ops Linear) via an `operations` argument.
-3. Immediately before safetensors load:
-   - Move `*.comfy_quant` tensors to CPU (required for `.numpy()`)
-   - Fix meta-built Linear `factory_kwargs["device"]` to the real device
-4. Checkpoint detection uses `*.comfy_quant` JSON `format == "int8_tensorwise"`.
-5. Ship `seedvr2_int8_bench.py` so FP16 vs native INT8 can be compared on a real ComfyUI install + this custom node.
+1. 在 NaDiT **构造期**注入 `comfy.ops.mixed_precision_ops`。
+2. 通过 `operations` 参数，使 DiT 的 `nn.Linear` 可换成 **`operations.Linear`**（= comfy.ops Linear）。
+3. 在 safetensors 加载紧前：
+   - 将 `*.comfy_quant` 张量移到 CPU（`.numpy()` 需要）
+   - 把 meta 构建的 Linear `factory_kwargs["device"]` 修成真实设备
+4. 检查点检测使用 `*.comfy_quant` JSON 中 `format == "int8_tensorwise"`。
+5. 附带 `seedvr2_int8_bench.py`，可在真实 ComfyUI 安装 + 本自定义节点上对比 FP16 与原生 INT8。
 
-### Data flow (summary)
+### 数据流（摘要）
 
 ```
 SeedVR2 INT8 DiT .safetensors
@@ -41,43 +41,42 @@ SeedVR2 INT8 DiT .safetensors
 
 ---
 
-## 2. Added / modified files
+## 2. 新增 / 修改的文件
 
-### New
+### 新增
 
-| Path |
+| 路径 |
 |------|
 | `src/optimization/int8_native_ops.py` |
 | `seedvr2_int8_bench.py` |
 
-### Modified
+### 修改
 
-| Path | Role |
+| 路径 | 作用 |
 |------|------|
-| `src/common/config.py` | `create_object` forwards `**extra_kwargs` (`operations`) to the constructor |
-| `src/core/model_loader.py` | INT8 (`int8_tensorwise`) detect, ops inject, pre-load prep |
-| `src/utils/model_registry.py` | Register INT8 model names; resolve 7B configs |
-| `src/models/dit_3b/nadit.py` | Propagate `operations` |
+| `src/common/config.py` | `create_object` 把 `**extra_kwargs`（`operations`）转发给构造函数 |
+| `src/core/model_loader.py` | INT8（`int8_tensorwise`）检测、ops 注入、加载前准备 |
+| `src/utils/model_registry.py` | 注册 INT8 模型名；解析 7B 配置 |
+| `src/models/dit_3b/nadit.py` | 传播 `operations` |
 | `src/models/dit_3b/mlp.py` | `ops.Linear` |
 | `src/models/dit_3b/embedding.py` | `ops.Linear` |
 | `src/models/dit_3b/patch/patch_v1.py` | `ops.Linear` |
-| `src/models/dit_3b/nablocks/mmsr_block.py` | Propagate `operations` |
+| `src/models/dit_3b/nablocks/mmsr_block.py` | 传播 `operations` |
 | `src/models/dit_3b/nablocks/attention/mmattn.py` | `ops.Linear` |
-| `src/models/dit_7b/nadit.py` | Propagate `operations` |
+| `src/models/dit_7b/nadit.py` | 传播 `operations` |
 | `src/models/dit_7b/mlp.py` | `ops.Linear` |
 | `src/models/dit_7b/embedding.py` | `ops.Linear` |
 | `src/models/dit_7b/patch.py` | `ops.Linear` |
-| `src/models/dit_7b/nablocks/mmsr_block.py` | Propagate `operations` |
-| `src/models/dit_7b/blocks/mmdit_window_block.py` | `ops.Linear` / propagate |
+| `src/models/dit_7b/nablocks/mmsr_block.py` | 传播 `operations` |
+| `src/models/dit_7b/blocks/mmdit_window_block.py` | `ops.Linear` / 传播 |
 
 ---
 
-## 3. Full source of added / modified files
+## 3. 新增 / 修改文件的完整源码
 
-Below is the **current full text** of each file on the custom node (complete form including these changes).
+以下为自定义节点上各文件的**当前全文**（含这些改动的完整形态）。
 
-### New files
-
+### 新增文件
 ### `src/optimization/int8_native_ops.py`
 
 ```python
@@ -4158,59 +4157,60 @@ class MMWindowTransformerBlock(nn.Module):
 ```
 
 ---
+---
 
-## 4. What this means
+## 4. 这意味着什么
 
-### `int8_native_ops.py` — bridge between SeedVR2 INT8 and comfy.ops
+### `int8_native_ops.py` — SeedVR2 INT8 与 comfy.ops 之间的桥
 
-| Function | Meaning |
+| 函数 | 含义 |
 |----------|---------|
-| `checkpoint_is_hswq_int8` | Opens the safetensors, reads `*.comfy_quant`, and treats the checkpoint as SeedVR2 INT8 when JSON `format` is `int8_tensorwise`. Not extension or filename guessing. |
-| `get_hswq_mixed_precision_ops` | Returns `comfy.ops.mixed_precision_ops(quant_config={}, compute_dtype=fp16)`. Empty `quant_config` keeps only marker layers as QuantizedTensor; others stay normal Parameters. |
-| `prepare_hswq_state_dict_for_comfy_ops` | Moves `comfy_quant` tensors to CPU. Required because `layer_conf.numpy()` fails on CUDA tensors. |
-| `patch_ops_factory_device` | After meta build, empty/meta `factory_kwargs["device"]` would leave QuantizedTensor on meta. Writes the real device. |
-| `resolve_linear_ops` | Helper for DiT submodules (`operations` or `torch.nn`). |
+| `checkpoint_is_hswq_int8` | 打开 safetensors，读取 `*.comfy_quant`，当 JSON `format` 为 `int8_tensorwise` 时视为 SeedVR2 INT8。不靠扩展名或文件名猜测。 |
+| `get_hswq_mixed_precision_ops` | 返回 `comfy.ops.mixed_precision_ops(quant_config={}, compute_dtype=fp16)`。空 `quant_config` 仅让标记层成为 QuantizedTensor；其余仍为普通 Parameter。 |
+| `prepare_hswq_state_dict_for_comfy_ops` | 将 `comfy_quant` 张量移到 CPU。因为 `layer_conf.numpy()` 在 CUDA 张量上会失败。 |
+| `patch_ops_factory_device` | meta 构建后，空/meta 的 `factory_kwargs["device"]` 会把 QuantizedTensor 留在 meta 上。写入真实设备。 |
+| `resolve_linear_ops` | DiT 子模块辅助（`operations` 或 `torch.nn`）。 |
 
-**Why post-load Linear replace is not enough**  
-The GGUF path swaps in a Linear that owns its own quantized buffers after load. SeedVR2 INT8 with `comfy_quant` needs `comfy.ops` `_load_from_state_dict` → `_load_quantized_module` **during** `state_dict` load. A late swap never hits that hook.
+**为何仅做加载后 Linear 替换不够**  
+GGUF 路径在加载后换入自带量化 buffer 的 Linear。带 `comfy_quant` 的 SeedVR2 INT8 需要在 `state_dict` 加载**期间**走 comfy.ops 的 `_load_from_state_dict` → `_load_quantized_module`。晚替换永远碰不到该钩子。
 
-### `config.create_object(..., **extra_kwargs)` — inject ops without dirtying YAML
+### `config.create_object(..., **extra_kwargs)` — 不弄脏 YAML 地注入 ops
 
-Keep YAML `__object__` unchanged; pass `operations=` only at construction. Existing FP16 / FP8 / GGUF configs stay untouched; injection happens only for SeedVR2 INT8 DiT.
+保持 YAML `__object__` 不变；仅在构造时传 `operations=`。既有 FP16 / FP8 / GGUF 配置不动；仅对 SeedVR2 INT8 DiT 注入。
 
-### `model_loader.py` — detect → inject at build → pre-load prep
+### `model_loader.py` — 检测 → 构建时注入 → 加载前准备
 
-1. `prepare_model_structure`: if DiT and `int8_tensorwise`, set `create_kwargs["operations"] = get_hswq_mixed_precision_ops(fp16)`, then `create_object` under `torch.device("meta")`.  
-2. `_load_and_assign_weights` (equivalent): run `prepare_hswq_state_dict_for_comfy_ops` and `patch_ops_factory_device` on the loaded state, then normal `load_state_dict`.  
-3. Independent of the GGUF branch. INT8 uses safetensors + comfy.ops.
+1. `prepare_model_structure`：若为 DiT 且 `int8_tensorwise`，设 `create_kwargs["operations"] = get_hswq_mixed_precision_ops(fp16)`，再在 `torch.device("meta")` 下 `create_object`。  
+2. `_load_and_assign_weights`（等价路径）：对已加载 state 跑 `prepare_hswq_state_dict_for_comfy_ops` 与 `patch_ops_factory_device`，再正常 `load_state_dict`。  
+3. 独立于 GGUF 分支。INT8 走 safetensors + comfy.ops。
 
-### DiT modules: `operations=None` / `ops.Linear`
+### DiT 模块：`operations=None` / `ops.Linear`
 
-Without `operations`, behavior stays `torch.nn` (backward compatible). With injection, Linear comes from `comfy.ops` and interprets `comfy_quant` / `weight_scale`. The same propagation is wired through 3B / 7B paths that use Linear (MLP, Embedding, Patch, Attention, Window block).
+无 `operations` 时行为保持 `torch.nn`（向后兼容）。注入后 Linear 来自 `comfy.ops`，解释 `comfy_quant` / `weight_scale`。同样的传播接到使用 Linear 的 3B / 7B 路径（MLP、Embedding、Patch、Attention、Window block）。
 
 ### `model_registry.py`
 
-- Registers `seedvr2_7b_int8_convrot.safetensors` / `seedvr2_7b_sharp_int8_convrot.safetensors`.  
-- `resolve_dit_config_folder` picks `configs_7b` from registry `size=7B` (filename need not contain `7b`).
+- 注册 `seedvr2_7b_int8_convrot.safetensors` / `seedvr2_7b_sharp_int8_convrot.safetensors`。  
+- `resolve_dit_config_folder` 根据注册表 `size=7B` 选择 `configs_7b`（文件名不必含 `7b`）。
 
 ### `seedvr2_int8_bench.py`
 
-Resolves ComfyUI core and SeedVR2 from this custom-node layout, then compares FP16 DiT vs native INT8 DiT under the same conditions. Uses the same `model_loader` / `int8_native_ops` path as production nodes.
+从本自定义节点布局解析 ComfyUI 核心与 SeedVR2，再在相同条件下对比 FP16 DiT 与原生 INT8 DiT。使用与生产节点相同的 `model_loader` / `int8_native_ops` 路径。
 
-### Operational notes
+### 运维注意
 
-- ComfyUI must provide `comfy.ops.mixed_precision_ops`.  
-- Place weights under `models/SEEDVR2/` (or similar) and pass filename/path via the node UI or bench args.  
-- INT8 is **DiT only**. VAE stays FP16 (e.g. `ema_vae_fp16.safetensors`).  
-- The real gate is `comfy_quant` with `int8_tensorwise`, not “INT8” in the filename.
+- ComfyUI 须提供 `comfy.ops.mixed_precision_ops`。  
+- 权重放在 `models/SEEDVR2/`（或类似路径），经节点 UI 或 bench 参数传入文件名/路径。  
+- INT8 **仅 DiT**。VAE 保持 FP16（例如 `ema_vae_fp16.safetensors`）。  
+- 真正门槛是带 `int8_tensorwise` 的 `comfy_quant`，不是文件名里的 “INT8”。
 
 ---
 
-## Reference: bench example (from custom_nodes root)
+## 参考：bench 示例（从 custom_nodes 根目录）
 
 ```powershell
 cd D:\USERFILES\ComfyUI\ComfyUI\custom_nodes\seedvr2_videoupscaler
 python.exe seedvr2_int8_bench.py --fp16 seedvr2_ema_7b_fp16.safetensors --int8 seedvr2_7b_int8_convrot.safetensors --vae ema_vae_fp16.safetensors
 ```
 
-(Adjust paths for your install. In PowerShell, do not leave a stray `"` at the end of an argument.)
+（按你的安装调整路径。在 PowerShell 中，不要在参数末尾留下多余的 `"`。）

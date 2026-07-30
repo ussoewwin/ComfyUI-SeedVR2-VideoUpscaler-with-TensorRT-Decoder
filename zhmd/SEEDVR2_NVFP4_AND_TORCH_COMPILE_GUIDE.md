@@ -1,45 +1,45 @@
-# SeedVR2 Video Upscaler — NVFP4 Native Ops and torch.compile Fixes
+# SeedVR2 Video Upscaler — NVFP4 原生 Ops 与 torch.compile 修复
 
 <table align="center">
   <tr>
-    <td align="center" bgcolor="#3478ca" width="88" height="36"><font color="#ffffff"><b>EN</b></font></td>
-    <td align="center" bgcolor="#e5e7eb" width="88" height="36"><a href="../zhmd/SEEDVR2_NVFP4_AND_TORCH_COMPILE_GUIDE.md"><font color="#4b5563"><b>中文</b></font></a></td>
+    <td align="center" bgcolor="#e5e7eb" width="88" height="36"><a href="../md/SEEDVR2_NVFP4_AND_TORCH_COMPILE_GUIDE.md"><font color="#4b5563"><b>EN</b></font></a></td>
+    <td align="center" bgcolor="#3478ca" width="88" height="36"><font color="#ffffff"><b>中文</b></font></td>
   </tr>
 </table>
 
-Target custom node: `ComfyUI/custom_nodes/seedvr2_videoupscaler`  
-Canonical commit: `a14db91b31c08bee62055e17521d4f1537bef03c`  
-(`feat: NVFP4 DiT native ops and VAE torch.compile inductor fixes`)
+目标自定义节点：`ComfyUI/custom_nodes/seedvr2_videoupscaler`  
+规范提交：`a14db91b31c08bee62055e17521d4f1537bef03c`  
+（`feat: NVFP4 DiT native ops and VAE torch.compile inductor fixes`）
 
-This guide documents **(A) NVFP4 DiT native load** and **(B) VAE/DiT torch.compile inductor fixes** landed in that commit.  
-Abandoned later experiments (max-autotune remaps, phase park/isolate) are **out of scope**.
+本指南记录该提交中落地的 **(A) NVFP4 DiT 原生加载** 与 **(B) VAE/DiT torch.compile inductor 修复**。  
+之后放弃的实验（max-autotune 重映射、阶段 park/isolate）**不在范围内**。
 
-Related prior guide: `md/SEEDVR2_INT8_NATIVE_OPS_GUIDE.md` (INT8 construction-time `comfy.ops`).
+相关先前指南：`md/SEEDVR2_INT8_NATIVE_OPS_GUIDE.md`（INT8 构造期 `comfy.ops`；中文：`zhmd/SEEDVR2_INT8_NATIVE_OPS_GUIDE.md`）。
 
 ---
 
-## 1. NVFP4 support overview
+## 1. NVFP4 支持概述
 
-### Problem
+### 问题
 
-SeedVR2 DiT packs quantized as **NVFP4** ship:
+打包为 **NVFP4** 的 SeedVR2 DiT 权重包含：
 
-- `*.comfy_quant` JSON with `format == "nvfp4"`
-- `weight_scale` (block, often `float8_e4m3fn`)
-- `weight_scale_2` (tensor scale)
+- `*.comfy_quant` JSON，且 `format == "nvfp4"`
+- `weight_scale`（块级，常为 `float8_e4m3fn`）
+- `weight_scale_2`（张量级 scale）
 
-If Linear layers are plain `nn.Linear` and weights are expanded **after** load (post-load replace), ComfyUI never runs `comfy.ops._load_quantized_module`. Packed NVFP4 storage is lost → **VRAM savings gone**, same failure mode as pre-native INT8.
+若 Linear 仍是普通 `nn.Linear`，且权重在加载**之后**展开（加载后替换），ComfyUI 永不运行 `comfy.ops._load_quantized_module`。打包的 NVFP4 存储丢失 → **显存节省消失**，与原生 INT8 之前的失败模式相同。
 
-### Approach (same family as INT8)
+### 做法（与 INT8 同族）
 
-1. Detect NVFP4 via `checkpoint_is_nvfp4()` (scan `*.comfy_quant`).
-2. At DiT **construction** (meta), inject `comfy.ops.mixed_precision_ops` through `create_object(..., operations=...)`.
-3. Before `load_state_dict`: reuse INT8 prep helpers (`prepare_hswq_state_dict_for_comfy_ops`, `patch_ops_factory_device`) so `comfy_quant` is CPU-readable and factory device is real.
-4. If the GPU lacks native NVFP4 matmul (`supports_nvfp4_compute() == False`), put `"nvfp4"` in `disabled` so storage stays packed but matmul dequantizes (ComfyUI `pick_operations` pattern).
-5. Wrap `ops.Linear.forward` to cast activations to FP16/BF16 when `comfy_kitchen.quantize_nvfp4` would reject float32.
-6. In DiT upscale phase, **skip `torch.autocast`** for native NVFP4 so LayerNorm/RMSNorm do not feed float32 into NVFP4 Linear.
+1. 经 `checkpoint_is_nvfp4()` 检测 NVFP4（扫描 `*.comfy_quant`）。
+2. 在 DiT **构造**（meta）时，经 `create_object(..., operations=...)` 注入 `comfy.ops.mixed_precision_ops`。
+3. 在 `load_state_dict` 前：复用 INT8 准备辅助（`prepare_hswq_state_dict_for_comfy_ops`、`patch_ops_factory_device`），使 `comfy_quant` 可读于 CPU，且 factory 设备为真实设备。
+4. 若 GPU 无原生 NVFP4 matmul（`supports_nvfp4_compute() == False`），把 `"nvfp4"` 放入 `disabled`，存储保持打包但 matmul 走反量化（ComfyUI `pick_operations` 模式）。
+5. 包装 `ops.Linear.forward`，在 `comfy_kitchen.quantize_nvfp4` 会拒绝 float32 时把激活转到 FP16/BF16。
+6. 在 DiT upscale 阶段，对原生 NVFP4 **跳过 `torch.autocast`**，以免 LayerNorm/RMSNorm 向 NVFP4 Linear 喂 float32。
 
-### Data flow
+### 数据流
 
 ```
 NVFP4 DiT .safetensors
@@ -50,35 +50,34 @@ NVFP4 DiT .safetensors
   → inference: QuantizedTensor path (+ optional act cast; no full-forward autocast)
 ```
 
-VAE is **not** NVFP4-quantized in this workstream; VAE torch.compile issues are separate (sections 5–9).
+本工作流中 VAE **未**做 NVFP4 量化；VAE torch.compile 问题单独见第 5–9 节。
 
 ---
 
-## 2. Added / modified files (NVFP4)
+## 2. 新增 / 修改的文件（NVFP4）
 
-### New
+### 新增
 
-| Path |
+| 路径 |
 |------|
 | `src/optimization/nvfp4_native_ops.py` |
 
-### Modified
+### 修改
 
-| Path | Role |
+| 路径 | 作用 |
 |------|------|
-| `src/core/model_loader.py` | `_dit_comfy_quant_ops` / `_dit_needs_comfy_quant_prep`; inject ops for NVFP4 or INT8; flag `_dit_comfy_quant_native` |
-| `src/core/generation_phases.py` | Skip DiT `torch.autocast` when native NVFP4 |
-| `src/common/config.py` | Docstring: `operations` for INT8 / NVFP4 |
-| `src/utils/model_registry.py` | Comment wording only (INT8 entry retained) |
+| `src/core/model_loader.py` | `_dit_comfy_quant_ops` / `_dit_needs_comfy_quant_prep`；为 NVFP4 或 INT8 注入 ops；标记 `_dit_comfy_quant_native` |
+| `src/core/generation_phases.py` | 原生 NVFP4 时跳过 DiT `torch.autocast` |
+| `src/common/config.py` | 文档字符串：`operations` 用于 INT8 / NVFP4 |
+| `src/utils/model_registry.py` | 仅注释措辞（保留 INT8 条目） |
 
-(`__init__.py` / `fix_inductor.py` belong to torch.compile — sections 7–8.)
+（`__init__.py` / `fix_inductor.py` 属于 torch.compile — 见第 7–8 节。）
 
 ---
 
-## 3. Full source of added / modified files (NVFP4)
+## 3. 新增 / 修改文件的完整源码（NVFP4）
 
-Current tree at `a14db91` (working tree restored to that commit).
-
+当前树为 `a14db91`（工作树已恢复到该提交）。
 ### `src/optimization/nvfp4_native_ops.py` (new, complete)
 
 ```python
@@ -2990,30 +2989,31 @@ def get_available_vae_models() -> List[str]:
 ```
 
 ---
+---
 
-## 4. Meaning (NVFP4)
+## 4. 含义（NVFP4）
 
-| Change | Meaning |
+| 变更 | 含义 |
 |--------|---------|
-| `checkpoint_is_nvfp4` | Ground-truth detect from safetensors markers; no filename guessing |
-| `get_nvfp4_mixed_precision_ops` | Construction-time Linear that understands `comfy_quant` / NVFP4 scales |
-| `disabled=["nvfp4"]` when no native compute | Keep packed weights on weaker GPUs; avoid hard fail |
-| Activation cast in `Linear.forward` | `quantize_nvfp4` only accepts FP16/BF16; float32 from norms would crash |
-| Skip DiT autocast | Prevents norms under autocast from emitting float32 into NVFP4 Linear (same root cause as above) |
-| Shared prep with INT8 | `comfy_quant` `.numpy()` needs CPU; meta Linear needs real `factory_kwargs["device"]` |
-| `_dit_comfy_quant_native` | Runtime flag so upscale phase can special-case NVFP4 without re-scanning every batch |
+| `checkpoint_is_nvfp4` | 以 safetensors 标记为真值检测；不靠文件名猜测 |
+| `get_nvfp4_mixed_precision_ops` | 构造期理解 `comfy_quant` / NVFP4 scale 的 Linear |
+| 无原生算力时 `disabled=["nvfp4"]` | 在较弱 GPU 上保持打包权重；避免硬失败 |
+| `Linear.forward` 中的激活转换 | `quantize_nvfp4` 只接受 FP16/BF16；来自 norm 的 float32 会崩溃 |
+| 跳过 DiT autocast | 防止 autocast 下的 norm 向 NVFP4 Linear 发出 float32（与上同根因） |
+| 与 INT8 共享准备 | `comfy_quant` 的 `.numpy()` 需要 CPU；meta Linear 需要真实 `factory_kwargs["device"]` |
+| `_dit_comfy_quant_native` | 运行时标志，使 upscale 阶段可特判 NVFP4，无需每批重扫 |
 
-Without construction-time injection, NVFP4 would fully expand → large VRAM, defeating the pack.
+若无构造期注入，NVFP4 会完全展开 → 大量显存，打包毫无意义。
 
 ---
 
-## 5. torch.compile errors that appeared afterward
+## 5. 之后出现的 torch.compile 错误
 
-Observed while running workflows that used **NVFP4 DiT** with **FP16 VAE** and VAE `torch.compile` enabled. **VAE itself is not NVFP4-quantized**; the failure is inductor / Windows encoding / decomp registration.
+在使用 **NVFP4 DiT**、**FP16 VAE** 且启用 VAE `torch.compile` 的工作流中观察到。**VAE 本身未做 NVFP4 量化**；失败来自 inductor / Windows 编码 / decomp 注册。
 
-### Error A — Windows locale decode (first failure)
+### 错误 A — Windows 区域解码（首次失败）
 
-Log shape:
+日志形态：
 
 ```text
 Configuring torch.compile for VAE submodules...
@@ -3022,51 +3022,50 @@ Configuring torch.compile for VAE submodules...
 Encoding batch ...
 ```
 
-Facts:
+事实：
 
-- Japanese Windows OEM / preferred encoding = **cp932**.
-- Inductor opens UTF-8 `.py.jinja` templates via `open()` **without** `encoding="utf-8"` → locale cp932 decode fails (byte `0x94` at ~618).
-- Separately, `torch.utils.cpp_extension.SUBPROCESS_DECODE_ARGS = ('oem',)` is **strict**; MSVC / OEM console bytes can raise the same `UnicodeDecodeError`.
-- SeedVR2 caught the exception and fell back to **uncompiled VAE** (generation continued without compile speedup).
+- 日文 Windows OEM / 首选编码 = **cp932**。
+- Inductor 打开 UTF-8 的 `.py.jinja` 模板时用 `open()` 且**未**指定 `encoding="utf-8"` → 区域 cp932 解码失败（约位置 618 的字节 `0x94`）。
+- 另，`torch.utils.cpp_extension.SUBPROCESS_DECODE_ARGS = ('oem',)` 为**严格**模式；MSVC / OEM 控制台字节可抛出同样的 `UnicodeDecodeError`。
+- SeedVR2 捕获异常并回退到 **未编译 VAE**（生成继续，但无 compile 加速）。
 
-### Error B — inductor decomp / fallback assert (next failure after encoding patch)
+### 错误 B — inductor decomp / fallback 断言（编码补丁之后的下一次失败）
 
 ```text
 AssertionError: both a fallback and a decomp for same op: aten.bmm.default
 ```
 
-(Same pattern also reported for partial decomps such as `aten.addmm.default`, `aten.mm`, `aten.mv`, `aten.linear`.)
+（同样模式也报告于部分 decomp，如 `aten.addmm.default`、`aten.mm`、`aten.mv`、`aten.linear`。）
 
-Facts:
+事实：
 
-- Inductor registers **partial** decompositions that return `NotImplemented` for general shapes, then calls `make_fallback`.
-- Default `override_decomp=False` asserts if the op is already in the decomp table → compile abort for VAE submodule compile.
-
----
-
-## 6. Countermeasure overview
-
-Do **not** disable torch.compile or remap `max-autotune` for these errors.
-
-1. Patch inductor **jinja** loader to always `encoding="utf-8"`, and rebind already-created `functools.partial` hooks in `mm_common` / flex templates.
-2. Set `SUBPROCESS_DECODE_ARGS` to `(encoding, "replace")` / `("oem", "replace")` on inductor cpp_builder and `torch.utils.cpp_extension`.
-3. Harden `CppCompileError` byte→str with `errors="replace"`; optionally rewrite legacy `_run_compile_cmd` decode sites.
-4. Wrap `make_fallback` so if `op` is already in the active decomp table, set `override_decomp=True`; also rebind `torch._inductor.graph.make_fallback` if already imported.
-5. Call `_fix_inductor_windows_encoding()` from **`__init__.py` at custom-node import** (before any compile), and keep the existing call from `model_configuration.py`.
+- Inductor 注册**部分**分解，对一般 shape 返回 `NotImplemented`，再调用 `make_fallback`。
+- 默认 `override_decomp=False` 在 op 已在 decomp 表中时断言 → VAE 子模块编译中止。
 
 ---
 
-## 7. Added / modified files (torch.compile)
+## 6. 对策概述
 
-| Path | Role |
+**不要**为这些错误禁用 torch.compile 或重映射 `max-autotune`。
+
+1. 修补 inductor **jinja** 加载器，始终 `encoding="utf-8"`，并重绑 `mm_common` / flex 模板中已创建的 `functools.partial` 钩子。
+2. 在 inductor cpp_builder 与 `torch.utils.cpp_extension` 上将 `SUBPROCESS_DECODE_ARGS` 设为 `(encoding, "replace")` / `("oem", "replace")`。
+3. 用 `errors="replace"` 加固 `CppCompileError` 的 byte→str；可选改写遗留 `_run_compile_cmd` 解码点。
+4. 包装 `make_fallback`：若 `op` 已在活跃 decomp 表中，设 `override_decomp=True`；若已导入则重绑 `torch._inductor.graph.make_fallback`。
+5. 从 **`__init__.py` 在自定义节点导入时**调用 `_fix_inductor_windows_encoding()`（在任何 compile 之前），并保留 `model_configuration.py` 中的既有调用。
+
+---
+
+## 7. 新增 / 修改的文件（torch.compile）
+
+| 路径 | 作用 |
 |------|------|
-| `src/core/fix_inductor.py` | UTF-8 jinja patch, OEM/cp932 replace, bmm/`make_fallback` override |
-| `__init__.py` | Apply inductor fix at extension import time |
+| `src/core/fix_inductor.py` | UTF-8 jinja 补丁、OEM/cp932 replace、bmm/`make_fallback` 覆盖 |
+| `__init__.py` | 扩展导入时应用 inductor 修复 |
 
 ---
 
-## 8. Full source of added / modified files (torch.compile)
-
+## 8. 新增 / 修改文件的完整源码（torch.compile）
 ### `src/core/fix_inductor.py` (complete)
 
 ```python
@@ -3396,32 +3395,33 @@ __all__ = ["comfy_entrypoint", "SeedVR2Extension"]
 ```
 
 ---
+---
 
-## 9. Meaning (torch.compile fixes)
+## 9. 含义（torch.compile 修复）
 
-| Change | Meaning |
+| 变更 | 含义 |
 |--------|---------|
-| `load_template` → UTF-8 open | Stops Error A at jinja import (true crash site for many VAE compiles) |
-| Rebind `mm_common` / flex partials | Fixes case where inductor already bound old `load_template` into partials |
-| `SUBPROCESS_DECODE_ARGS` + `replace` | Stops Error A on MSVC/OEM subprocess stdout |
-| `CppCompileError` / `_run_compile_cmd` hardening | Same class of decode failures in error paths |
-| `make_fallback` + `override_decomp=True` when op in decomp table | Stops Error B without removing decomps; partial decomp still tried first |
-| Rebind `graph.make_fallback` | `from lowering import make_fallback` would otherwise keep the unpatched function |
-| Early call from `__init__.py` | Patch must land **before** first `torch.compile` / inductor import side effects |
+| `load_template` → UTF-8 open | 在 jinja 导入处阻止错误 A（许多 VAE compile 的真正崩溃点） |
+| 重绑 `mm_common` / flex partial | 修复 inductor 已把旧 `load_template` 绑进 partial 的情况 |
+| `SUBPROCESS_DECODE_ARGS` + `replace` | 阻止 MSVC/OEM 子进程 stdout 上的错误 A |
+| `CppCompileError` / `_run_compile_cmd` 加固 | 错误路径中同类解码失败 |
+| 当 op 在 decomp 表中时 `make_fallback` + `override_decomp=True` | 在不移除 decomp 的情况下阻止错误 B；部分 decomp 仍先尝试 |
+| 重绑 `graph.make_fallback` | 否则 `from lowering import make_fallback` 会继续用未补丁函数 |
+| 从 `__init__.py` 尽早调用 | 补丁必须在首次 `torch.compile` / inductor 导入副作用**之前**落地 |
 
-Resulting behavior when successful: VAE submodule `torch.compile` proceeds instead of `Falling back to uncompiled VAE`.
+成功时的行为：VAE 子模块 `torch.compile` 继续进行，而不是 `Falling back to uncompiled VAE`。
 
 ---
 
-## Audit anchors
+## 审计锚点
 
-| Item | Value |
+| 项目 | 值 |
 |------|-------|
-| Commit | `a14db91b31c08bee62055e17521d4f1537bef03c` |
-| New module | `src/optimization/nvfp4_native_ops.py` |
-| Compile fix module | `src/core/fix_inductor.py` |
-| INT8 sibling guide | `md/SEEDVR2_INT8_NATIVE_OPS_GUIDE.md` |
+| 提交 | `a14db91b31c08bee62055e17521d4f1537bef03c` |
+| 新模块 | `src/optimization/nvfp4_native_ops.py` |
+| 编译修复模块 | `src/core/fix_inductor.py` |
+| INT8 姊妹指南 | `md/SEEDVR2_INT8_NATIVE_OPS_GUIDE.md` / `zhmd/SEEDVR2_INT8_NATIVE_OPS_GUIDE.md` |
 
 ---
 
-(End of guide.)
+（指南结束。）

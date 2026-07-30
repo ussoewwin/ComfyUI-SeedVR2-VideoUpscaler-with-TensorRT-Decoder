@@ -25,6 +25,14 @@
 
 https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler
 
+本 Fork 技术指南（中文）：
+
+- [INT8 原生推理](SEEDVR2_INT8_NATIVE_OPS_GUIDE.md)
+- [NVFP4 与 torch.compile](SEEDVR2_NVFP4_AND_TORCH_COMPILE_GUIDE.md)
+- [速度 / 显存余量](SEEDVR2_SPEED_VRAM_HEADROOM.md)
+- [Windows 并行编译修复](SEEDVR2_WINDOWS_PARALLEL_COMPILE_FIX.md)
+- [云环境依赖错误](vastai_dependency_guide.md)
+
 ## 更新日志
 
 - [changelogzh.md](changelogzh.md)
