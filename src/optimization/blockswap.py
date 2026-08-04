@@ -514,8 +514,8 @@ def _wrap_block_forward(
             # Use dynamo-disabled helper to log timing (avoids compilation warnings)
             _log_swap_timing(debug, t_start, self._block_idx, "block")
 
-            # Only clear cache under memory pressure
-            clear_memory(debug=debug, deep=False, force=False, timer_name="wrap_block_forward")
+            # Reclaim this block's reserved VRAM before the next .to(GPU) (avoids reserved stacking between swaps)
+            clear_memory(debug=debug, deep=False, force=True, timer_name="wrap_block_forward")
         else:
             output = original_forward(*args, **kwargs)
 
@@ -593,8 +593,8 @@ def _wrap_io_forward(
         # Use dynamo-disabled helper to log timing (avoids compilation warnings)
         _log_swap_timing(debug, t_start, self._module_name, "I/O")
 
-        # Only clear cache under memory pressure
-        clear_memory(debug=debug, deep=False, force=False, timer_name="wrap_block_forward")
+        # Reclaim this I/O module's reserved VRAM before the next .to(GPU) (avoids reserved stacking between swaps)
+        clear_memory(debug=debug, deep=False, force=True, timer_name="wrap_block_forward")
 
         return output
     
