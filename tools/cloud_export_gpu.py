@@ -136,13 +136,14 @@ def main() -> int:
     vae = vae.to(device="cuda", dtype=torch.float16).eval()
     configure_fixed_vae(vae)
 
-    # Chunk oversized convs and norms so the 185f trace fits in 32GB VRAM.
+    # NO conv/norm chunking: chunked graphs blow up the mid_block attention
+    # QK^T tensor and trip the TRT element-count limit (same export shape as the
+    # Studio 21f that builds successfully). 41f x 512 fits 32GB without chunking.
     from src.models.video_vae_v3.modules.global_config import set_norm_limit
-    set_norm_limit(8.0)
+    set_norm_limit(float("inf"))
     _dbg = Debug(enabled=False)
     for _module in vae.modules():
-        if isinstance(_module, InflatedCausalConv3d):
-            _module.set_memory_limit(8.0)
+        _module.set_memory_limit(float("inf"))
         _module.debug = _dbg
     gc.collect()
     torch.cuda.empty_cache()
