@@ -102,6 +102,7 @@ def main() -> int:
 
     from src.models.video_vae_v3.modules.attn_video_vae import VideoAutoencoderKL
     from src.models.video_vae_v3.modules.types import MemoryState
+    from src.utils.debug import Debug
     from src.models.video_vae_v3.modules.causal_inflation_lib import InflatedCausalConv3d
     from tools.onnx_export_utils import _portable_export
     from safetensors.torch import load_file
@@ -132,6 +133,15 @@ def main() -> int:
 
     vae = vae.to(device="cuda", dtype=torch.float16).eval()
     configure_fixed_vae(vae)
+
+    # Chunk oversized convs and norms so the 185f trace fits in 32GB VRAM.
+    from src.models.video_vae_v3.modules.global_config import set_norm_limit
+    set_norm_limit(8.0)
+    _dbg = Debug(enabled=False)
+    for _module in vae.modules():
+        if isinstance(_module, InflatedCausalConv3d):
+            _module.set_memory_limit(8.0)
+        _module.debug = _dbg
     gc.collect()
     torch.cuda.empty_cache()
 
