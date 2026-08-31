@@ -105,6 +105,11 @@ def main() -> int:
     from src.models.video_vae_v3.modules.causal_inflation_lib import InflatedCausalConv3d
     from tools.onnx_export_utils import _portable_export
     from safetensors.torch import load_file
+    # Expose to module-level helpers (configure_fixed_vae / _EncoderModule.forward)
+    import sys as _sys
+    _mod = _sys.modules[__name__]
+    _mod.MemoryState = MemoryState
+    _mod.InflatedCausalConv3d = InflatedCausalConv3d
 
     repo_path = Path(args.repo)
     vae_config_path = repo_path / "src" / "models" / "video_vae_v3" / "s8_c16_t4_inflation_sd3.yaml"
