@@ -93,6 +93,28 @@ def _build_trt_engine(onnx_path: Path, engine_path: Path, workspace_gb: float = 
     engine_path.write_bytes(blob)
 
 
+def _find_existing_dit(model_dir: Path) -> str:
+    """Pick an existing DiT checkpoint for structure creation; prefers 7b -> 3b -> any.
+
+    The DiT name is only used to build the (meta) structure; its weights are never
+    loaded by the TensorRT engine builder.
+    """
+    try:
+        if Path(model_dir).is_dir():
+            candidates = sorted(
+                p.name for p in Path(model_dir).glob("seedvr2_*.safetensors")
+                if not p.name.endswith(".download")
+            )
+            if candidates:
+                for pref in ("7b", "3b", ""):
+                    for name in candidates:
+                        if pref in name:
+                            return name
+    except Exception:
+        pass
+    return DEFAULT_DIT
+
+
 class SeedVR2BuildTensorRTVAE(io.ComfyNode):
     """
     SeedVR2 Build TensorRT VAE Engines Node
@@ -207,7 +229,7 @@ class SeedVR2BuildTensorRTVAE(io.ComfyNode):
             ctx = setup_generation_context(dit_device="cuda", vae_device="cuda", debug=debug)
             print(f"[SeedVR2] Initializing VAE structure for TensorRT export...")
             runner, _ = prepare_runner(
-                dit_model=DEFAULT_DIT,
+                dit_model=_find_existing_dit(model_dir),
                 vae_model=model,
                 model_dir=str(model_dir),
                 debug=debug,

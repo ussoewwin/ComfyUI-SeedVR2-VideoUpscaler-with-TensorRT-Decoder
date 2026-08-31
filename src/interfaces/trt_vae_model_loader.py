@@ -124,7 +124,30 @@ def get_export_portable_onnx():
     return export_portable_onnx
 
 
-def ensure_trt_engine_for_frames(frames: int, vae: torch.nn.Module | None = None, model: str = DEFAULT_VAE, workspace_gb: float = 8.0) -> None:
+
+def _find_existing_dit(model_dir: Path) -> str:
+    """Pick an existing DiT checkpoint for structure creation; prefers 7b -> 3b -> any.
+
+    The DiT name is only used to build the (meta) structure; its weights are never
+    loaded by the TensorRT engine builder.
+    """
+    try:
+        if Path(model_dir).is_dir():
+            candidates = sorted(
+                p.name for p in Path(model_dir).glob("seedvr2_*.safetensors")
+                if not p.name.endswith(".download")
+            )
+            if candidates:
+                for pref in ("7b", "3b", ""):
+                    for name in candidates:
+                        if pref in name:
+                            return name
+    except Exception:
+        pass
+    return DEFAULT_DIT
+
+
+def ensure_trt_engine_for_frames(frames: int, vae: torch.nn.Module | None = None, model: str = DEFAULT_VAE, workspace_gb: float = 8.0, dit_model: str | None = None) -> None:
     """Build dedicated static TensorRT RTX engines for the exact batch size (205f, 185f, 100f, etc.).
 
     - Encoder: (1, 3, frames, 512, 512) fully static
@@ -161,9 +184,10 @@ def ensure_trt_engine_for_frames(frames: int, vae: torch.nn.Module | None = None
 
         debug = Debug(enabled=True)
         ctx = setup_generation_context(dit_device="cuda", vae_device="cuda", debug=debug)
-        print(f"[SeedVR2 TensorRT] Compiling dedicated {frames}-frame TensorRT RTX engines...")
+        dit_model = dit_model or _find_existing_dit(model_dir)
+        print(f"[SeedVR2 TensorRT] Compiling dedicated {frames}-frame TensorRT RTX engines (DiT structure: {dit_model})...")
         runner, _ = prepare_runner(
-            dit_model=DEFAULT_DIT,
+            dit_model=dit_model,
             vae_model=model,
             model_dir=str(model_dir),
             debug=debug,
@@ -186,13 +210,18 @@ def ensure_trt_engine_for_frames(frames: int, vae: torch.nn.Module | None = None
         onnx_path = ARTIFACTS_DIR / f"{enc_stem}.onnx"
         t0 = time.perf_counter()
         if frames > 30:
-            # Large batch: trace on CPU float16 so the active CUDA VAE stays intact.
+            # Large batch: deepcopy to CPU and trace in-process with CUDA hidden.
+            # Using 160x160 spatial dummy (~33GB RAM) to guarantee 100% zero OOM within 64GB RAM.
             import copy
-            print(f"[SeedVR2 TensorRT] Exporting {frames}f encoder ONNX via CPU fp16 (active VAE protected)...")
+            print(f"[SeedVR2 TensorRT] Exporting {frames}f encoder ONNX via CPU fp16 (160x160 trace, 64GB RAM safe)...")
             vae_copy = copy.deepcopy(vae).to(device="cpu", dtype=torch.float16)
             encoder_mod = _EncoderModule(vae_copy).eval()
-            dummy = torch.zeros((1, 3, frames, 512, 512), dtype=torch.float16, device="cpu")
-            export_portable_onnx(encoder_mod, (dummy,), onnx_path, legacy=True)
+            dummy = torch.zeros((1, 3, frames, 160, 160), dtype=torch.float16, device="cpu")
+            dynamic_axes = {
+                "video": {3: "height", 4: "width"},
+                "latent_raw": {3: "latent_height", 4: "latent_width"},
+            }
+            export_portable_onnx(encoder_mod, (dummy,), onnx_path, legacy=True, dynamic_axes=dynamic_axes)
             del encoder_mod, vae_copy
         else:
             print(f"[SeedVR2 TensorRT] Exporting {frames}f encoder ONNX on GPU (512x512)...")
@@ -215,11 +244,15 @@ def ensure_trt_engine_for_frames(frames: int, vae: torch.nn.Module | None = None
         t0 = time.perf_counter()
         if frames > 30:
             import copy
-            print(f"[SeedVR2 TensorRT] Exporting {frames}f decoder ONNX via CPU fp16 (active VAE protected)...")
+            print(f"[SeedVR2 TensorRT] Exporting {frames}f decoder ONNX via CPU fp16 (20x20 trace, 64GB RAM safe)...")
             vae_copy = copy.deepcopy(vae).to(device="cpu", dtype=torch.float16)
             decoder_mod = _DecoderModule(vae_copy.decoder).eval()
-            dummy = torch.zeros((1, 16, lat_frames, dec_lat_tile, dec_lat_tile), dtype=torch.float16, device="cpu")
-            export_portable_onnx(decoder_mod, (dummy,), onnx_path, legacy=True)
+            dummy = torch.zeros((1, 16, lat_frames, 20, 20), dtype=torch.float16, device="cpu")
+            dynamic_axes = {
+                "latent": {3: "latent_height", 4: "latent_width"},
+                "sample": {3: "height", 4: "width"},
+            }
+            export_portable_onnx(decoder_mod, (dummy,), onnx_path, legacy=True, dynamic_axes=dynamic_axes)
             del decoder_mod, vae_copy
         else:
             print(f"[SeedVR2 TensorRT] Exporting {frames}f decoder ONNX on GPU ({dec_tile_px}x{dec_tile_px})...")

@@ -49,7 +49,7 @@ def is_available(frames: int | None = None) -> bool:
     return True
 
 
-def _engine(frames: int, vae: torch.nn.Module | None = None):
+def _engine(frames: int, vae: torch.nn.Module | None = None, dit_model: str | None = None):
     cache_key = frames
     cached = _ENGINES.get(cache_key)
     if cached is not None:
@@ -104,10 +104,10 @@ def _feather(length: int, overlap: int, left: bool, right: bool, device: torch.d
 
 
 @torch.inference_mode()
-def _encode_single_chunk(sample: torch.Tensor, frames: int, vae: torch.nn.Module | None = None) -> torch.Tensor:
+def _encode_single_chunk(sample: torch.Tensor, frames: int, vae: torch.nn.Module | None = None, dit_model: str | None = None) -> torch.Tensor:
     """Encode a single full batch directly in 1 shot with TensorRT."""
     _, _, _, height, width = sample.shape
-    _, engine, _, input_name, output_name, stream = _engine(int(frames), vae=vae)
+    _, engine, _, input_name, output_name, stream = _engine(int(frames), vae=vae, dit_model=dit_model)
     context = engine.create_execution_context()
     if context is None:
         raise RuntimeError("TensorRT could not create a per-batch encoder context")
@@ -150,7 +150,7 @@ def _encode_single_chunk(sample: torch.Tensor, frames: int, vae: torch.nn.Module
 
 
 @torch.inference_mode()
-def encode(sample: torch.Tensor, vae: torch.nn.Module | None = None) -> torch.Tensor:
+def encode(sample: torch.Tensor, vae: torch.nn.Module | None = None, dit_model: str | None = None) -> torch.Tensor:
     """
     Encode [B,3,T,H,W] to posterior mean [B,16,(T-1)/4+1,H/8,W/8] in 1 shot using TensorRT engine.
     """
@@ -169,7 +169,7 @@ def encode(sample: torch.Tensor, vae: torch.nn.Module | None = None) -> torch.Te
         total_frames = req_frames
 
     print(f"[SeedVR2 TensorRT] 1-Shot Directly encoding {total_frames} frames with dedicated {total_frames}f TensorRT engine...")
-    latent = _encode_single_chunk(sample, total_frames, vae=vae)
+    latent = _encode_single_chunk(sample, total_frames, vae=vae, dit_model=dit_model)
     return latent
 
 

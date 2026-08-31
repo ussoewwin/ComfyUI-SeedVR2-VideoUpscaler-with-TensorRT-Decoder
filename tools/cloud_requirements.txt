@@ -1,0 +1,32 @@
+# Cloud requirements for building SeedVR2 TensorRT VAE engines
+# Python 3.13/3.14 + CUDA 13.2 environment (match the LOCAL ComfyUI env)
+#
+# Install:
+#   pip install -r cloud_requirements.txt
+#
+# If your cloud GPU uses a different CUDA version, adjust the torch index URL
+# and tensorrt-rtx variant (cu13 vs cu12) accordingly.
+
+--index-url https://download.pytorch.org/whl/cu132
+torch==2.13.0+cu132
+torchvision
+
+# TensorRT-RTX (Myelin) — the local runtime uses 1.6.1.120
+tensorrt-rtx==1.6.1.120
+
+# ONNX toolchain
+onnx
+onnxscript
+polygraphy
+
+# Core deps used by the VAE graph / worker
+numpy
+safetensors
+einops
+omegaconf
+pyyaml
+
+# Optional speedups (matching local env)
+# sageattention
+# flash-attn
+# triton

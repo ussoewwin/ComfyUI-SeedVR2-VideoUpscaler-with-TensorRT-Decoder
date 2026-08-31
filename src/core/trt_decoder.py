@@ -54,7 +54,7 @@ def is_available(latent_frames: int | None = None) -> bool:
     return True
 
 
-def _engine(latent_frames: int, vae: torch.nn.Module | None = None):
+def _engine(latent_frames: int, vae: torch.nn.Module | None = None, dit_model: str | None = None):
     cache_key = latent_frames
     cached = _DECODER_ENGINES.get(cache_key)
     if cached is not None:
@@ -110,10 +110,10 @@ def _feather(length: int, overlap: int, left: bool, right: bool, device: torch.d
 
 
 @torch.inference_mode()
-def _decode_single_chunk(latent: torch.Tensor, latent_frames: int, vae: torch.nn.Module | None = None) -> torch.Tensor:
+def _decode_single_chunk(latent: torch.Tensor, latent_frames: int, vae: torch.nn.Module | None = None, dit_model: str | None = None) -> torch.Tensor:
     """Decode a single full batch directly in 1 shot with TensorRT."""
     _, _, _, height, width = latent.shape
-    _, engine, _, input_name, output_name, stream, tile, overlap = _engine(int(latent_frames), vae=vae)
+    _, engine, _, input_name, output_name, stream, tile, overlap = _engine(int(latent_frames), vae=vae, dit_model=dit_model)
     context = engine.create_execution_context()
     if context is None:
         raise RuntimeError("TensorRT could not create a per-batch decoder context")
@@ -155,7 +155,7 @@ def _decode_single_chunk(latent: torch.Tensor, latent_frames: int, vae: torch.nn
 
 
 @torch.inference_mode()
-def decode(latent: torch.Tensor, vae: torch.nn.Module | None = None) -> torch.Tensor:
+def decode(latent: torch.Tensor, vae: torch.nn.Module | None = None, dit_model: str | None = None) -> torch.Tensor:
     """
     Decode [B,16,T_lat,H,W] to video [B,3,(T_lat-1)*4+1,H*8,W*8] in 1 shot using TensorRT engine.
     """
@@ -165,7 +165,7 @@ def decode(latent: torch.Tensor, vae: torch.nn.Module | None = None) -> torch.Te
     video_frames = (latent_frames - 1) * 4 + 1
 
     print(f"[SeedVR2 TensorRT] 1-Shot Directly decoding {video_frames} frames ({latent_frames} latents) with dedicated {video_frames}f TensorRT engine...")
-    sample = _decode_single_chunk(latent, latent_frames, vae=vae)
+    sample = _decode_single_chunk(latent, latent_frames, vae=vae, dit_model=dit_model)
     return sample
 
 

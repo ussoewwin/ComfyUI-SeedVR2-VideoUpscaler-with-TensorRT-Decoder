@@ -53,6 +53,17 @@ class VideoDiffusionInfer():
         self.tile_debug = tile_debug
         self.use_tensorrt_vae = use_tensorrt_vae
         
+    def _resolve_dit_name(self) -> Optional[str]:
+        """Return the DiT checkpoint filename selected by the workflow DiT loader."""
+        cp = getattr(self, "_dit_checkpoint", None)
+        if cp:
+            name = str(cp).replace("\\", "/").rsplit("/", 1)[-1]
+            if name:
+                return name
+        return None
+
+
+
     def get_condition(self, latent: Tensor, latent_blur: Tensor, task: str) -> Tensor:
         t, h, w, c = latent.shape
         cond = torch.zeros([t, h, w, c + 1], device=latent.device, dtype=latent.dtype)
@@ -153,7 +164,7 @@ class VideoDiffusionInfer():
                         enc_sample = sample if sample.ndim == 5 else sample.unsqueeze(0)
                         if enc_sample.ndim == 5 and trt_enc_available(enc_sample.shape[2]):
                             self.debug.log(f"Encoding with TensorRT VAE Encoder ({enc_sample.shape[2]} frames)", category="info", indent_level=1)
-                            latent = trt_encode(enc_sample, vae=self.vae)
+                            latent = trt_encode(enc_sample, vae=self.vae, dit_model=self._resolve_dit_name())
                             latent = latent.unsqueeze(2) if latent.ndim == 4 else latent
                             latent = optimized_channels_to_last(latent)
                             latent = (latent - shift) * scale
@@ -276,7 +287,7 @@ class VideoDiffusionInfer():
                         dec_latent = latent if latent.ndim == 5 else latent.unsqueeze(0)
                         if dec_latent.ndim == 5 and trt_dec_available(dec_latent.shape[2]):
                             self.debug.log(f"Decoding with TensorRT VAE Decoder ({dec_latent.shape[2]} latent frames)", category="info", indent_level=1)
-                            sample = trt_decode(dec_latent, vae=self.vae)
+                            sample = trt_decode(dec_latent, vae=self.vae, dit_model=self._resolve_dit_name())
                             if sample.ndim == 5 and sample.shape[0] == 1:
                                 sample = sample.squeeze(0)
                             samples.append(sample)
