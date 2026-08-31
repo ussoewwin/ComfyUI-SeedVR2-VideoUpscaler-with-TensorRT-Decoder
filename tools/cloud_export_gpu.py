@@ -160,9 +160,9 @@ def main() -> int:
 
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
-    print(f"Exporting {frames}f {args.kind} ONNX on GPU...", flush=True)
+    print(f"Exporting {frames}f {args.kind} ONNX (dynamo/FakeTensor path - no real memory)...", flush=True)
     with torch.inference_mode():
-        _portable_export(mod, (dummy,), output, legacy=True)
+        _portable_export(mod, (dummy,), output, legacy=False)
     print(f"WORKER-OK {args.kind} {frames}f -> {output} ({time.perf_counter() - t0:.1f}s)", flush=True)
     return 0
 
