@@ -143,7 +143,8 @@ def main() -> int:
     set_norm_limit(float("inf"))
     _dbg = Debug(enabled=False)
     for _module in vae.modules():
-        _module.set_memory_limit(float("inf"))
+        if isinstance(_module, InflatedCausalConv3d):
+            _module.set_memory_limit(float("inf"))
         _module.debug = _dbg
     gc.collect()
     torch.cuda.empty_cache()
