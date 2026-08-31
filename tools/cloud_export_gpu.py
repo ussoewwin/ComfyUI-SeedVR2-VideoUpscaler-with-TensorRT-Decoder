@@ -87,6 +87,8 @@ def main() -> int:
     parser.add_argument("--frames", type=int, required=True)
     parser.add_argument("--output", required=True)
     parser.add_argument("--model", default="ema_vae_fp16.safetensors", help="VAE filename")
+    parser.add_argument("--tile", type=int, default=256, choices=[256, 512],
+                        help="spatial tile size for the ONNX (256 = 1/4 memory; engine tile must match)")
     args = parser.parse_args()
 
     if not torch.cuda.is_available():
@@ -151,18 +153,21 @@ def main() -> int:
     dec_lat_tile = dec_tile_px // 8
 
     t0 = time.perf_counter()
+    enc_tile = args.tile
     if args.kind == "encoder":
         mod = _EncoderModule(vae).eval().to(device="cuda", dtype=torch.float16)
-        dummy = torch.zeros((1, 3, frames, 512, 512), dtype=torch.float16, device="cuda")
+        dummy = torch.zeros((1, 3, frames, enc_tile, enc_tile), dtype=torch.float16, device="cuda")
+        stem_suffix = f"tile{enc_tile}"
     else:
         mod = _DecoderModule(vae.decoder).eval().to(device="cuda", dtype=torch.float16)
         dummy = torch.zeros((1, 16, lat_frames, dec_lat_tile, dec_lat_tile), dtype=torch.float16, device="cuda")
+        stem_suffix = f"tile_{dec_tile_px}"
 
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
-    print(f"Exporting {frames}f {args.kind} ONNX (dynamo/FakeTensor path - no real memory)...", flush=True)
+    print(f"Exporting {frames}f {args.kind} ONNX on GPU (legacy tracer)...", flush=True)
     with torch.inference_mode():
-        _portable_export(mod, (dummy,), output, legacy=False)
+        _portable_export(mod, (dummy,), output, legacy=True)
     print(f"WORKER-OK {args.kind} {frames}f -> {output} ({time.perf_counter() - t0:.1f}s)", flush=True)
     return 0
 
