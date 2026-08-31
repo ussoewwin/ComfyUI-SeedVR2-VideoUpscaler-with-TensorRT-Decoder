@@ -42,6 +42,44 @@ def _find_vae_file(model_name: str, model_dir: Path) -> Path:
     raise FileNotFoundError(f"Could not locate VAE file {model_name}")
 
 
+class _EncoderModule(torch.nn.Module):
+    """Standalone copy (avoids importing src.interfaces which needs comfy_api)."""
+
+    def __init__(self, vae: torch.nn.Module) -> None:
+        super().__init__()
+        self.encoder = vae.encoder
+        self.quant_conv = vae.quant_conv
+
+    def forward(self, video: torch.Tensor) -> torch.Tensor:
+        hidden = self.encoder(video, memory_state=MemoryState.DISABLED)
+        if self.quant_conv is not None:
+            hidden = self.quant_conv(hidden, memory_state=MemoryState.DISABLED)
+        return hidden
+
+
+class _DecoderModule(torch.nn.Module):
+    def __init__(self, decoder: torch.nn.Module) -> None:
+        super().__init__()
+        self.decoder = decoder
+
+    def forward(self, latent: torch.Tensor) -> torch.Tensor:
+        return self.decoder(latent, memory_state=MemoryState.DISABLED)
+
+
+def configure_fixed_vae(vae: torch.nn.Module) -> None:
+    if hasattr(vae, "disable_slicing"):
+        vae.disable_slicing()
+    if hasattr(vae, "set_memory_limit"):
+        vae.set_memory_limit(None, None)
+    for module in vae.modules():
+        if isinstance(module, InflatedCausalConv3d):
+            module.set_memory_limit(float("inf"))
+            if hasattr(module, "set_memory_device"):
+                module.set_memory_device(None)
+        if hasattr(module, "slicing"):
+            module.slicing = False
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--repo", required=True, help="custom node root directory")
@@ -63,11 +101,8 @@ def main() -> int:
     sys.path.insert(0, args.repo)
 
     from src.models.video_vae_v3.modules.attn_video_vae import VideoAutoencoderKL
-    from src.interfaces.trt_vae_model_loader import (
-        _EncoderModule,
-        _DecoderModule,
-        configure_fixed_vae,
-    )
+    from src.models.video_vae_v3.modules.types import MemoryState
+    from src.models.video_vae_v3.modules.causal_inflation_lib import InflatedCausalConv3d
     from tools.onnx_export_utils import _portable_export
     from safetensors.torch import load_file
 
