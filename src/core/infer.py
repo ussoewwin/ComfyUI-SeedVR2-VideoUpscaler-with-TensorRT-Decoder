@@ -39,7 +39,8 @@ class VideoDiffusionInfer():
                  encode_tile_overlap: Tuple[int, int] = (64, 64),
                  decode_tiled: bool = False, decode_tile_size: Tuple[int, int] = (512, 512),
                  decode_tile_overlap: Tuple[int, int] = (64, 64),
-                 tile_debug: str = "false"):
+                 tile_debug: str = "false",
+                 use_tensorrt_vae: bool = False):
         self.config = config
         self.debug = debug
         # Store separate encode and decode tiling parameters
@@ -50,6 +51,7 @@ class VideoDiffusionInfer():
         self.decode_tile_size = decode_tile_size
         self.decode_tile_overlap = decode_tile_overlap
         self.tile_debug = tile_debug
+        self.use_tensorrt_vae = use_tensorrt_vae
         
     def get_condition(self, latent: Tensor, latent_blur: Tensor, task: str) -> Tensor:
         t, h, w, c = latent.shape
@@ -144,6 +146,22 @@ class VideoDiffusionInfer():
 
             # VAE process by each group.
             for sample in batches:
+                # Check TensorRT VAE encoder
+                if getattr(self, "use_tensorrt_vae", False) or os.environ.get("SEEDVR2_TRT_ENCODER", "0") == "1":
+                    try:
+                        from .trt_encoder import is_available as trt_enc_available, encode as trt_encode
+                        enc_sample = sample if sample.ndim == 5 else sample.unsqueeze(0)
+                        if enc_sample.ndim == 5 and trt_enc_available(enc_sample.shape[2]):
+                            self.debug.log(f"Encoding with TensorRT VAE Encoder ({enc_sample.shape[2]} frames)", category="info", indent_level=1)
+                            latent = trt_encode(enc_sample, vae=self.vae)
+                            latent = latent.unsqueeze(2) if latent.ndim == 4 else latent
+                            latent = optimized_channels_to_last(latent)
+                            latent = (latent - shift) * scale
+                            latents.append(latent)
+                            continue
+                    except Exception as trt_err:
+                        self.debug.log(f"TensorRT VAE Encoder fallback to standard VAE: {trt_err}", category="warning", indent_level=1)
+
                 if hasattr(self.vae, "preprocess"):
                     sample = self.vae.preprocess(sample)
 
@@ -250,6 +268,21 @@ class VideoDiffusionInfer():
                 latent = latent / scale + shift
                 latent = optimized_channels_to_second(latent)
                 latent = latent.squeeze(2)
+
+                # Check TensorRT VAE decoder
+                if getattr(self, "use_tensorrt_vae", False) or os.environ.get("SEEDVR2_TRT_DECODER", "0") == "1":
+                    try:
+                        from .trt_decoder import is_available as trt_dec_available, decode as trt_decode
+                        dec_latent = latent if latent.ndim == 5 else latent.unsqueeze(0)
+                        if dec_latent.ndim == 5 and trt_dec_available(dec_latent.shape[2]):
+                            self.debug.log(f"Decoding with TensorRT VAE Decoder ({dec_latent.shape[2]} latent frames)", category="info", indent_level=1)
+                            sample = trt_decode(dec_latent, vae=self.vae)
+                            if sample.ndim == 5 and sample.shape[0] == 1:
+                                sample = sample.squeeze(0)
+                            samples.append(sample)
+                            continue
+                    except Exception as trt_dec_err:
+                        self.debug.log(f"TensorRT VAE Decoder fallback to standard VAE: {trt_dec_err}", category="warning", indent_level=1)
 
                 # Detect VAE model dtype
                 try:

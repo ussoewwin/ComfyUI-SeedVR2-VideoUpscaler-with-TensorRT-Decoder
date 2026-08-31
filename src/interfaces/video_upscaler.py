@@ -229,8 +229,8 @@ class SeedVR2VideoUpscaler(io.ComfyNode):
                 seed: int, resolution: int = 1080, max_resolution: int = 0, batch_size: int = 5,
                 uniform_batch_size: bool = False, temporal_overlap: int = 0, prepend_frames: int = 0,
                 color_correction: str = "wavelet", input_noise_scale: float = 0.0,
-                latent_noise_scale: float = 0.0, offload_device: str = "none", 
-                enable_debug: bool = False) -> io.NodeOutput:
+                latent_noise_scale: float = 0.0, offload_device: str = "none",
+                enable_debug: bool = False, **kwargs) -> io.NodeOutput:
         """
         Execute SeedVR2 video upscaling with progress reporting
         
@@ -333,12 +333,12 @@ class SeedVR2VideoUpscaler(io.ComfyNode):
                 ctx = None
         
         # Extract configuration from dict inputs
-        dit_model = dit["model"]
-        vae_model = vae["model"]
-        dit_device = torch.device(dit["device"])
-        vae_device = torch.device(vae["device"])
-        dit_id = dit["node_id"]
-        vae_id = vae["node_id"]
+        dit_model = dit.get("model", "seedvr2_ema_3b_fp16.safetensors")
+        vae_model = vae.get("model", "ema_vae_fp16.safetensors")
+        dit_device = torch.device(dit.get("device", "cuda:0"))
+        vae_device = torch.device(vae.get("device", "cuda:0"))
+        dit_id = dit.get("node_id", "dit_node")
+        vae_id = vae.get("node_id", "vae_node")
 
         # OPTIONAL inputs - use .get() with defaults
         dit_cache = dit.get("cache_model", False)
@@ -443,6 +443,11 @@ class SeedVR2VideoUpscaler(io.ComfyNode):
                 attention_mode=attention_mode,
                 torch_compile_args_dit=dit_torch_compile_args,
                 torch_compile_args_vae=vae_torch_compile_args
+            )
+            runner.use_tensorrt_vae = bool(
+                vae.get("use_tensorrt_vae", False)
+                or vae.get("vae_backend") == "tensorrt"
+                or kwargs.get("vae_backend") == "tensorrt"
             )
 
             # Store cache context in ctx for use in generation phases

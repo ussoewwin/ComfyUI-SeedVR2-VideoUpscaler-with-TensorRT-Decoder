@@ -1,0 +1,8 @@
+# Known-good Windows / CUDA 13.2 TensorRT stack for ComfyUI-SeedVR2_VideoUpscaler
+# PyTorch packages (torch 2.13.0+cu132) are installed separately from the cu132 index.
+# SageAttention 2 and FlashAttention 2 are installed from custom wheels.
+triton-windows==3.5.1.post24
+tensorrt-rtx==1.6.1.120
+onnx==1.22.0
+onnxscript==0.7.1
+polygraphy==0.53.4

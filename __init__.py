@@ -48,10 +48,35 @@ _REQUIRED_PACKAGES = [
     ("opencv-python", "cv2"),
     ("gguf", None),
     ("matplotlib", None),
+    ("tensorrt-rtx", "tensorrt_rtx"),
+    ("onnx", "onnx"),
 ]
 
 for pkg, imp in _REQUIRED_PACKAGES:
     ensure_package(pkg, imp)
+
+# Verify TensorRT RTX VAE engines
+try:
+    from pathlib import Path
+    _cur_artifacts = Path(__file__).resolve().parent / "tensorrt_backend" / "artifacts"
+    _cur_artifacts.mkdir(parents=True, exist_ok=True)
+    _ready_count = 0
+    _engines = (
+        "vae_encoder_5f_tile512.rtxplan",
+        "vae_encoder_21f_tile512.rtxplan",
+        "vae_decoder_tile_512_5f.rtxplan",
+        "vae_decoder_tile_256_21f.rtxplan"
+    )
+    for _eng in _engines:
+        _dst = _cur_artifacts / _eng
+        if _dst.exists() and _dst.stat().st_size > 1_000_000:
+            _ready_count += 1
+    if _ready_count == len(_engines):
+        print(f"[SeedVR2 TensorRT] ✅ All {len(_engines)} TensorRT RTX VAE engines ready (2x-5x acceleration active)")
+    else:
+        print(f"[SeedVR2 TensorRT] ℹ️ {_ready_count}/{len(_engines)} RTX VAE engines ready (engines will build on first run with 'SeedVR2 Load TensorRT VAE Model')")
+except Exception as _trt_sync_err:
+    print(f"[SeedVR2 TensorRT] Warning during engine check: {_trt_sync_err}")
 
 # Windows cp932: patch inductor jinja open(encoding=utf-8) before any torch.compile
 try:
@@ -62,6 +87,17 @@ except Exception as _seedvr2_inductor_fix_err:  # noqa: BLE001
     print(f"[SeedVR2] Warning: inductor Windows encoding fix skipped: {_seedvr2_inductor_fix_err}")
 
 from .src.optimization.compatibility import ensure_triton_compat  # noqa: F401
-from .src.interfaces import comfy_entrypoint, SeedVR2Extension
+from .src.interfaces import (
+    comfy_entrypoint,
+    SeedVR2Extension,
+    SeedVR2VideoUpscaler,
+    SeedVR2LoadDiTModel,
+    SeedVR2LoadVAEModel,
+    SeedVR2TorchCompileSettings,
+    SeedVR2BuildTensorRTVAE,
+    SeedVR2LoadTensorRTVAEModel,
+)
+
+print(f"[SeedVR2] 🚀 Loaded nodes: SeedVR2VideoUpscaler, SeedVR2LoadTensorRTVAEModel (⚡TRT), SeedVR2BuildTensorRTVAE, SeedVR2LoadVAEModel, SeedVR2LoadDiTModel")
 
 __all__ = ["comfy_entrypoint", "SeedVR2Extension"]

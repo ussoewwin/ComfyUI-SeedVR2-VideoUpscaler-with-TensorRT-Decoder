@@ -554,6 +554,17 @@ def encode_all_batches(
         debug.log(f"Error in Phase 1 (Encoding): {e}", level="ERROR", category="error", force=True)
         raise
     finally:
+        # The TensorRT encoder context owns a large GPU workspace. It must be
+        # released before Phase 2, otherwise DiT compile inherits its reserved
+        # blocks on WDDM and runs out of memory during inductor autotuning.
+        if getattr(runner, "use_tensorrt_vae", False) or os.environ.get("SEEDVR2_TRT_ENCODER", "0") == "1":
+            try:
+                from .trt_encoder import release as release_trt_encoder
+                release_trt_encoder()
+                debug.log("Released TensorRT VAE encoder resources before Phase 2", category="memory", force=True)
+            except Exception as release_error:
+                debug.log(f"Could not release TensorRT VAE encoder resources: {release_error}", level="WARNING", category="memory", force=True)
+
         # Offload VAE to configured offload device if specified
         if ctx['vae_offload_device'] is not None:
             manage_model_device(model=runner.vae, target_device=ctx['vae_offload_device'],
@@ -1108,6 +1119,15 @@ def decode_all_batches(
         debug.log(f"Error in Phase 3 (Decoding): {e}", level="ERROR", category="error", force=True)
         raise
     finally:
+        # Release TensorRT decoder resources
+        if getattr(runner, "use_tensorrt_vae", False) or os.environ.get("SEEDVR2_TRT_DECODER", "0") == "1":
+            try:
+                from .trt_decoder import release as release_trt_decoder
+                release_trt_decoder()
+                debug.log("Released TensorRT VAE decoder resources after Phase 3", category="memory", force=True)
+            except Exception as release_error:
+                debug.log(f"Could not release TensorRT VAE decoder resources: {release_error}", level="WARNING", category="memory", force=True)
+
         # Cleanup VAE as it's no longer needed
         cleanup_vae(runner=runner, debug=debug, cache_model=cache_model)
         
