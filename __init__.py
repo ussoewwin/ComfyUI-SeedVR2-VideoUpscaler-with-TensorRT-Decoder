@@ -96,6 +96,7 @@ from .src.interfaces import (
     SeedVR2TorchCompileSettings,
     SeedVR2BuildTensorRTVAE,
     SeedVR2LoadTensorRTVAEModel,
+    SeedVR2LoadTensorRTVAEDecoder,
 )
 
 print(f"[SeedVR2] 🚀 Loaded nodes: SeedVR2VideoUpscaler, SeedVR2LoadTensorRTVAEModel (⚡TRT), SeedVR2BuildTensorRTVAE, SeedVR2LoadVAEModel, SeedVR2LoadDiTModel")
