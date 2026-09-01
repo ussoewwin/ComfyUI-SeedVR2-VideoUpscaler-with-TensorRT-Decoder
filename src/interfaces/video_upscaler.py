@@ -72,7 +72,15 @@ class SeedVR2VideoUpscaler(io.ComfyNode):
                     tooltip="DiT model configuration from SeedVR2 (Down)Load DiT Model node"
                 ),
                 io.Custom("SEEDVR2_VAE").Input("vae",
-                    tooltip="VAE model configuration from SeedVR2 (Down)Load VAE Model node"
+                    tooltip="VAE model configuration (backward compat; used for both encode and decode)"
+                ),
+                io.Custom("SEEDVR2_VAE").Input("vae_encode",
+                    optional=True,
+                    tooltip="TensorRT VAE encoder configuration (separate engine frame size)"
+                ),
+                io.Custom("SEEDVR2_VAE").Input("vae_decode",
+                    optional=True,
+                    tooltip="TensorRT VAE decoder configuration (separate engine frame size)"
                 ),
                 io.Int.Input("seed",
                     default=42,
@@ -225,12 +233,13 @@ class SeedVR2VideoUpscaler(io.ComfyNode):
         )
     
     @classmethod
-    def execute(cls, image: torch.Tensor, dit: Dict[str, Any], vae: Dict[str, Any], 
+    def execute(cls, image: torch.Tensor, dit: Dict[str, Any], vae: Dict[str, Any],
                 seed: int, resolution: int = 1080, max_resolution: int = 0, batch_size: int = 5,
                 uniform_batch_size: bool = False, temporal_overlap: int = 0, prepend_frames: int = 0,
                 color_correction: str = "wavelet", input_noise_scale: float = 0.0,
                 latent_noise_scale: float = 0.0, offload_device: str = "none",
-                enable_debug: bool = False, **kwargs) -> io.NodeOutput:
+                enable_debug: bool = False, vae_encode: Dict[str, Any] | None = None,
+                vae_decode: Dict[str, Any] | None = None, **kwargs) -> io.NodeOutput:
         """
         Execute SeedVR2 video upscaling with progress reporting
         
@@ -339,6 +348,10 @@ class SeedVR2VideoUpscaler(io.ComfyNode):
         vae_device = torch.device(vae.get("device", "cuda:0"))
         dit_id = dit.get("node_id", "dit_node")
         vae_id = vae.get("node_id", "vae_node")
+
+        # Separate encoder/decoder configs (fall back to the shared `vae` input)
+        encode_cfg: Dict[str, Any] = vae_encode or vae or {}
+        decode_cfg: Dict[str, Any] = vae_decode or vae or {}
 
         # OPTIONAL inputs - use .get() with defaults
         dit_cache = dit.get("cache_model", False)
@@ -464,7 +477,8 @@ class SeedVR2VideoUpscaler(io.ComfyNode):
                 or vae.get("vae_backend") == "tensorrt"
                 or kwargs.get("vae_backend") == "tensorrt"
             )
-            runner.use_tensorrt_engine_frames = vae.get("engine_frames", "auto")
+            runner.use_tensorrt_engine_frames = encode_cfg.get("engine_frames", "auto")
+            runner.use_tensorrt_decode_engine_frames = decode_cfg.get("engine_frames", "auto")
 
             # Store cache context in ctx for use in generation phases
             ctx['cache_context'] = cache_context

@@ -345,7 +345,7 @@ class VideoDiffusionInfer():
                         dec_latent = latent if latent.ndim == 5 else latent.unsqueeze(0)
                         if dec_latent.ndim == 5 and trt_dec_available(dec_latent.shape[2]):
                             self.debug.log(f"Decoding with TensorRT VAE Decoder (engine={getattr(self, 'use_tensorrt_engine_frames', 'auto')})", category="info", indent_level=1)
-                            sample = _trt_decode_batch(dec_latent, self.vae, self._resolve_dit_name(), getattr(self, 'use_tensorrt_engine_frames', 'auto'))
+                            sample = _trt_decode_batch(dec_latent, self.vae, self._resolve_dit_name(), getattr(self, 'use_tensorrt_decode_engine_frames', 'auto'))
                             if sample.ndim == 5 and sample.shape[0] == 1:
                                 sample = sample.squeeze(0)
                             samples.append(sample)
