@@ -62,13 +62,13 @@ def _engine(latent_frames: int, vae: torch.nn.Module | None = None, dit_model: s
 
     path, tile, overlap = find_engine_path(latent_frames)
     if path is None:
+        # No auto-build: engines are created explicitly via the build scripts/node.
         video_frames = (latent_frames - 1) * 4 + 1
-        print(f"[SeedVR2 TensorRT] Dedicated {video_frames}f decoder engine not found. Building now...")
-        from ..interfaces.trt_vae_model_loader import ensure_trt_engine_for_frames
-        ensure_trt_engine_for_frames(video_frames, vae=vae)
-        path, tile, overlap = find_engine_path(latent_frames)
-        if path is None:
-            raise FileNotFoundError(f"Failed to build TensorRT VAE decoder engine for {latent_frames} latent frames")
+        raise FileNotFoundError(
+            f"TensorRT VAE decoder engine for {video_frames} frames not found. "
+            f"Build it first with tools/cloud_export_gpu.py + tools/cloud_build_engine.py "
+            f"or the SeedVR2 Build TensorRT VAE Engines node."
+        )
 
     runtime = trt.Runtime(trt.Logger(trt.Logger.WARNING))
     engine = runtime.deserialize_cuda_engine(path.read_bytes())
