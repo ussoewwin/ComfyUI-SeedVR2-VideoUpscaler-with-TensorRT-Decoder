@@ -34,6 +34,12 @@ from ..optimization.performance import (
 from ..models.dit_3b import na
 
 
+# Remembers the pre-pad spatial size so the decoder can crop back to the original
+# dimensions. Spatial dims that are not multiples of 8 make tile boundaries drift
+# from latent boundaries, producing smeared (top-left) / black (bottom-right) tiles.
+_TRT_CROP_HW = [-1, -1]
+
+
 def _trt_encode_batch(enc_sample, vae, dit_model, engine_frames_setting):
     """Encode a long clip by feeding the TensorRT encoder 29f-sized chunks ONLY.
 
@@ -42,6 +48,15 @@ def _trt_encode_batch(enc_sample, vae, dit_model, engine_frames_setting):
     """
     from .trt_encoder import encode as trt_encode, resolve_engine_frames
     total = enc_sample.shape[2]
+    # Pad spatial dims to multiples of 8 so tile boundaries align with latent boundaries.
+    h, w = enc_sample.shape[3], enc_sample.shape[4]
+    ph = ((h + 7) // 8) * 8
+    pw = ((w + 7) // 8) * 8
+    if (ph, pw) != (h, w):
+        enc_sample = torch.nn.functional.pad(enc_sample, (0, pw - w, 0, ph - h))
+        _TRT_CROP_HW[0], _TRT_CROP_HW[1] = h, w
+    else:
+        _TRT_CROP_HW[0], _TRT_CROP_HW[1] = -1, -1
     engine_frames = resolve_engine_frames(engine_frames_setting)
     if engine_frames is None:
         raise RuntimeError("No TensorRT VAE encoder engine available")
@@ -93,6 +108,10 @@ def _trt_decode_batch(dec_latent, vae, dit_model, engine_frames_setting):
     result = torch.zeros((1, 3, out_frames, s0.shape[3], s0.shape[4]), device=s0.device, dtype=s0.dtype)
     for sample, out_start in parts:
         result[:, :, out_start:out_start + engine_video_frames] = sample
+    if _TRT_CROP_HW[0] > 0 and _TRT_CROP_HW[1] > 0:
+        h, w = _TRT_CROP_HW[0], _TRT_CROP_HW[1]
+        result = result[:, :, :, :h, :w]
+        _TRT_CROP_HW[0], _TRT_CROP_HW[1] = -1, -1
     return result
 
 
