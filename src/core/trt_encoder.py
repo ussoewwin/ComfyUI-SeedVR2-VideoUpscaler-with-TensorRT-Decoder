@@ -58,12 +58,13 @@ def _engine(frames: int, vae: torch.nn.Module | None = None, dit_model: str | No
 
     path, tile_px = find_engine_path(frames)
     if path is None:
-        print(f"[SeedVR2 TensorRT] Dedicated {frames}f encoder engine not found. Building now...")
-        from ..interfaces.trt_vae_model_loader import ensure_trt_engine_for_frames
-        ensure_trt_engine_for_frames(frames, vae=vae, dit_model=dit_model)
-        path, tile_px = find_engine_path(frames)
-        if path is None:
-            raise FileNotFoundError(f"Failed to build TensorRT VAE encoder engine for {frames} frames")
+        # No auto-build: engines are created explicitly via the build scripts/node.
+        # Without an engine we fall back to the standard PyTorch VAE.
+        raise FileNotFoundError(
+            f"TensorRT VAE encoder engine for {frames} frames not found. "
+            f"Build it first with tools/cloud_export_gpu.py + tools/cloud_build_engine.py "
+            f"or the SeedVR2 Build TensorRT VAE Engines node."
+        )
 
     runtime = trt.Runtime(trt.Logger(trt.Logger.WARNING))
     engine = runtime.deserialize_cuda_engine(path.read_bytes())
