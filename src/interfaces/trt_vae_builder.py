@@ -1,19 +1,19 @@
-"""Dedicated ComfyUI Node to Build TensorRT RTX VAE Engines directly inside ComfyUI.
+"""ComfyUI Node: SeedVR2 Build TensorRT VAE Engines.
 
-Builds a dedicated fixed-shape TensorRT engine pair (encoder + decoder) for ANY
-user-specified batch size (e.g. 100, 185, 205 frames). Large batches (>30f) are
-traced on CPU float16 so the active CUDA VAE is never disturbed.
+Runs the explicit build scripts (tools/cloud_export_gpu.py + tools/cloud_build_engine.py)
+as subprocesses so the user chooses the frame count and tile size (256/512) by hand.
+There is NO auto-build at inference time: if the engine is missing the pipeline falls
+back to the standard PyTorch VAE.
 """
 
 from __future__ import annotations
 
-import gc
+import subprocess
 import sys
 import time
 from pathlib import Path
 from typing import Any, Dict
 
-import torch
 from comfy_api.latest import io
 
 try:
@@ -21,134 +21,49 @@ try:
 except ImportError:
     ProgressBar = None
 
-from ..optimization.memory_manager import get_device_list
-from ..core.generation_utils import prepare_runner, setup_generation_context
-from ..core.model_loader import materialize_model
-from ..utils.debug import Debug
+from ..utils.model_registry import DEFAULT_VAE, get_available_vae_models
 from ..utils.constants import get_base_cache_dir
-from ..utils.downloads import download_weight
-from ..utils.model_registry import (
-    DEFAULT_DIT,
-    DEFAULT_VAE,
-    get_available_vae_models,
-)
-from ..models.video_vae_v3.modules.types import MemoryState
-from ..models.video_vae_v3.modules.causal_inflation_lib import InflatedCausalConv3d
 
 ROOT = Path(__file__).resolve().parents[2]
 ARTIFACTS_DIR = ROOT / "tensorrt_backend" / "artifacts"
 
 
-class _EncoderModule(torch.nn.Module):
-    def __init__(self, vae: torch.nn.Module) -> None:
-        super().__init__()
-        self.encoder = vae.encoder
-        self.quant_conv = vae.quant_conv
-
-    def forward(self, video: torch.Tensor) -> torch.Tensor:
-        hidden = self.encoder(video, memory_state=MemoryState.DISABLED)
-        if self.quant_conv is not None:
-            hidden = self.quant_conv(hidden, memory_state=MemoryState.DISABLED)
-        return hidden
-
-
-class _DecoderModule(torch.nn.Module):
-    def __init__(self, decoder: torch.nn.Module) -> None:
-        super().__init__()
-        self.decoder = decoder
-
-    def forward(self, latent: torch.Tensor) -> torch.Tensor:
-        return self.decoder(latent, memory_state=MemoryState.DISABLED)
-
-
-def _configure_fixed_vae(vae: torch.nn.Module) -> None:
-    if hasattr(vae, "disable_slicing"):
-        vae.disable_slicing()
-    if hasattr(vae, "set_memory_limit"):
-        vae.set_memory_limit(None, None)
-    for module in vae.modules():
-        if isinstance(module, InflatedCausalConv3d):
-            module.set_memory_limit(float("inf"))
-            if hasattr(module, "set_memory_device"):
-                module.set_memory_device(None)
-        if hasattr(module, "slicing"):
-            module.slicing = False
-
-
-def _build_trt_engine(onnx_path: Path, engine_path: Path, workspace_gb: float = 8.0) -> None:
-    import tensorrt_rtx as trt
-    logger = trt.Logger(trt.Logger.WARNING)
-    builder = trt.Builder(logger)
-    network = builder.create_network()
-    parser = trt.OnnxParser(network, logger)
-    if not parser.parse_from_file(str(onnx_path)):
-        errors = "\n".join(str(parser.get_error(i)) for i in range(parser.num_errors))
-        raise RuntimeError(f"TensorRT-RTX could not parse {onnx_path}:\n{errors}")
-    config = builder.create_builder_config()
-    config.set_memory_pool_limit(trt.MemoryPoolType.WORKSPACE, int(workspace_gb * (1 << 30)))
-    blob = builder.build_serialized_network(network, config)
-    if blob is None:
-        raise RuntimeError(f"TensorRT-RTX failed to build engine: {engine_path}")
-    engine_path.parent.mkdir(parents=True, exist_ok=True)
-    engine_path.write_bytes(blob)
-
-
-def _find_existing_dit(model_dir: Path) -> str:
-    """Pick an existing DiT checkpoint for structure creation; prefers 7b -> 3b -> any.
-
-    The DiT name is only used to build the (meta) structure; its weights are never
-    loaded by the TensorRT engine builder.
-    """
-    try:
-        if Path(model_dir).is_dir():
-            candidates = sorted(
-                p.name for p in Path(model_dir).glob("seedvr2_*.safetensors")
-                if not p.name.endswith(".download")
-            )
-            if candidates:
-                for pref in ("7b", "3b", ""):
-                    for name in candidates:
-                        if pref in name:
-                            return name
-    except Exception:
-        pass
-    return DEFAULT_DIT
-
-
 class SeedVR2BuildTensorRTVAE(io.ComfyNode):
-    """
-    SeedVR2 Build TensorRT VAE Engines Node
-
-    Builds a dedicated fixed-shape TensorRT RTX VAE engine pair (encoder + decoder)
-    for any user-specified batch size. The frame count is auto-normalized to 4n+1.
-    """
+    """Build dedicated TensorRT VAE engines for a chosen frame count and tile size."""
 
     @classmethod
     def define_schema(cls) -> io.Schema:
         vae_models = get_available_vae_models()
-
         return io.Schema(
             node_id="SeedVR2BuildTensorRTVAE",
             display_name="SeedVR2 Build TensorRT VAE Engines",
             category="SEEDVR2",
             description=(
-                "Builds a dedicated TensorRT RTX VAE engine pair (encoder + decoder) for any batch size. "
-                "The frame count is auto-normalized to 4n+1 (e.g. 100 -> 101, 185 -> 185, 205 -> 205). "
-                "Large batches (>30f) are exported via CPU fp16 so the active VAE is protected. "
-                "Connect the SEEDVR2_VAE output directly to SeedVR2 Video Upscaler."
+                "Builds dedicated TensorRT VAE engines (encoder + decoder) for a chosen "
+                "frame count and tile size by running tools/cloud_export_gpu.py and "
+                "tools/cloud_build_engine.py. Frame count is normalized to 4n+1. "
+                "Engine files land in tensorrt_backend/artifacts/ and are picked up "
+                "automatically by the TensorRT VAE loader after a restart."
             ),
             inputs=[
                 io.Combo.Input("model",
                     options=vae_models,
                     default=DEFAULT_VAE,
-                    tooltip="VAE model file to convert into TensorRT RTX engines."
+                    tooltip="VAE model file (fp16 safetensors)."
                 ),
-                io.Int.Input("batch_size",
-                    default=205,
+                io.Int.Input("frames",
+                    default=89,
                     min=5,
                     max=4096,
                     step=4,
-                    tooltip="Batch size (frames) to build a dedicated engine for. Auto-normalized to 4n+1 (e.g. 100, 185, 205)."
+                    tooltip="Batch/frame size for the engine. Auto-normalized to 4n+1 "
+                            "(e.g. 89, 93, 97, 101, 185, 205)."
+                ),
+                io.Combo.Input("tile_size",
+                    options=["256", "512"],
+                    default="256",
+                    tooltip="Spatial tile size. 256px fits larger frame counts in 16GB; "
+                            "512px is higher quality but limited to ~21-29 frames on 16GB."
                 ),
                 io.Float.Input("workspace_gb",
                     default=8.0,
@@ -156,161 +71,92 @@ class SeedVR2BuildTensorRTVAE(io.ComfyNode):
                     max=32.0,
                     step=0.5,
                     optional=True,
-                    tooltip="TensorRT workspace memory allocation in GB during engine compilation (default: 8.0 GB)."
+                    tooltip="TensorRT workspace in GB during engine build."
                 ),
                 io.Boolean.Input("force_rebuild",
                     default=False,
                     optional=True,
-                    tooltip="Force rebuilding engines even if they already exist on disk."
+                    tooltip="Rebuild even if the engine already exists."
                 ),
             ],
             outputs=[
-                io.Custom("SEEDVR2_VAE").Output(
-                    tooltip="VAE configuration ready to connect to SeedVR2 Video Upscaler node."
-                ),
                 io.String.Output(
-                    tooltip="Status and summary of built TensorRT VAE engines."
+                    tooltip="Build status summary."
                 )
             ]
         )
 
     @classmethod
-    def execute(cls, model: str, batch_size: int = 205, workspace_gb: float = 8.0, force_rebuild: bool = False) -> io.NodeOutput:
-        import importlib.util
-        tools_file = ROOT / "tools" / "onnx_export_utils.py"
-        if tools_file.exists():
-            spec = importlib.util.spec_from_file_location("onnx_export_utils", str(tools_file))
-            mod = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(mod)
-            export_portable_onnx = mod.export_portable_onnx
-        else:
-            if str(ROOT) not in sys.path:
-                sys.path.insert(0, str(ROOT))
-            from tools.onnx_export_utils import export_portable_onnx
-
+    def execute(cls, model: str, frames: int = 89, tile_size: str = "256",
+                workspace_gb: float = 8.0, force_rebuild: bool = False) -> io.NodeOutput:
+        frames = ((frames - 1) // 4) * 4 + 1  # normalize to 4n+1
+        tile = int(tile_size)
         ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
+
+        python = sys.executable
+        worker = ROOT / "tools" / "cloud_export_gpu.py"
+        builder = ROOT / "tools" / "cloud_build_engine.py"
         model_dir = Path(get_base_cache_dir())
-        model_dir.mkdir(parents=True, exist_ok=True)
 
-        if not (model_dir / model).exists():
-            print(f"[SeedVR2] Downloading {model} to {model_dir}...")
-            download_weight(DEFAULT_DIT, model, str(model_dir))
+        enc_stem = f"vae_encoder_{frames}f_tile{tile}"
+        dec_stem = f"vae_decoder_tile_{tile}_{frames}f"
 
-        frames = ((batch_size - 1) // 4) * 4 + 1
-        lat_frames = (frames - 1) // 4 + 1
-        dec_tile_px = 256 if frames >= 21 else 512
-        dec_lat_tile = dec_tile_px // 8
-
-        enc_stem = f"vae_encoder_{frames}f_tile512"
-        dec_stem = f"vae_decoder_tile_{dec_tile_px}_{frames}f"
-
-        profiles = [
-            ("encoder", enc_stem, (1, 3, frames, 512, 512)),
-            ("decoder", dec_stem, (1, 16, lat_frames, dec_lat_tile, dec_lat_tile)),
+        jobs = [
+            ("encoder", enc_stem, f"{enc_stem}.rtxplan"),
+            ("decoder", dec_stem, f"{dec_stem}.rtxplan"),
         ]
 
-        needed = []
-        for mode, stem, shape in profiles:
-            eng_path = ARTIFACTS_DIR / f"{stem}.rtxplan"
-            if force_rebuild or not eng_path.exists() or eng_path.stat().st_size < 1_000_000:
-                needed.append((mode, stem, shape))
-
         status_lines = []
+        needed = []
+        for kind, stem, eng_name in jobs:
+            eng_path = ARTIFACTS_DIR / eng_name
+            if force_rebuild or not eng_path.exists() or eng_path.stat().st_size < 1_000_000:
+                needed.append((kind, stem, eng_name))
+
         if not needed:
-            msg = f"TensorRT VAE engines for {frames}f already built and ready."
-            print(f"[SeedVR2] {msg}")
+            msg = f"Engines for {frames}f tile{tile} already exist."
+            print(f"[SeedVR2] {msg}", flush=True)
             status_lines.append(msg)
-            for mode, stem, shape in profiles:
-                eng_path = ARTIFACTS_DIR / f"{stem}.rtxplan"
-                size_mb = eng_path.stat().st_size / (1024 * 1024)
-                status_lines.append(f" - {stem}.rtxplan ({size_mb:.1f} MB)")
+            for kind, stem, eng_name in jobs:
+                eng_path = ARTIFACTS_DIR / eng_name
+                status_lines.append(f" - {eng_name} ({eng_path.stat().st_size / 2**20:.1f} MB)")
         else:
-            debug = Debug(enabled=True)
-            ctx = setup_generation_context(dit_device="cuda", vae_device="cuda", debug=debug)
-            print(f"[SeedVR2] Initializing VAE structure for TensorRT export...")
-            runner, _ = prepare_runner(
-                dit_model=_find_existing_dit(model_dir),
-                vae_model=model,
-                model_dir=str(model_dir),
-                debug=debug,
-                ctx=ctx,
-            )
-            cfg = getattr(runner, "config", None) or ctx.get("config")
-            materialize_model(runner, "vae", torch.device("cuda"), cfg, debug)
-            vae = runner.vae
-            vae.eval().to(device="cuda", dtype=torch.float16)
-            _configure_fixed_vae(vae)
-
             pbar = ProgressBar(len(needed)) if ProgressBar is not None else None
-
-            for mode, stem, shape in needed:
+            for kind, stem, eng_name in needed:
                 onnx_path = ARTIFACTS_DIR / f"{stem}.onnx"
-                eng_path = ARTIFACTS_DIR / f"{stem}.rtxplan"
-
-                print(f"[SeedVR2] Building TensorRT {frames}f {mode} profile...", flush=True)
+                eng_path = ARTIFACTS_DIR / eng_name
                 t0 = time.perf_counter()
+                print(f"[SeedVR2] Building {frames}f {kind} (tile {tile})...", flush=True)
 
-                if frames > 30:
-                    import copy
-                    print(f"[SeedVR2] Exporting {frames}f {mode} ONNX via CPU fp16 (active VAE protected)...", flush=True)
-                    vae_copy = copy.deepcopy(vae).to(device="cpu", dtype=torch.float16)
-                    if mode == "encoder":
-                        mod_export = _EncoderModule(vae_copy).eval()
-                    else:
-                        mod_export = _DecoderModule(vae_copy.decoder).eval()
-                    dummy = torch.zeros(shape, dtype=torch.float16, device="cpu")
-                    export_portable_onnx(mod_export, (dummy,), onnx_path, legacy=True)
-                    del mod_export, vae_copy
-                else:
-                    print(f"[SeedVR2] Exporting {frames}f {mode} ONNX on GPU...", flush=True)
-                    if mode == "encoder":
-                        mod_export = _EncoderModule(vae).eval().to(device="cuda", dtype=torch.float16)
-                    else:
-                        mod_export = _DecoderModule(vae.decoder).eval().to(device="cuda", dtype=torch.float16)
-                    dummy = torch.zeros(shape, dtype=torch.float16, device="cuda")
-                    export_portable_onnx(mod_export, (dummy,), onnx_path, legacy=True)
-                    del mod_export, dummy
+                # 1) ONNX export (GPU trace)
+                r1 = subprocess.run(
+                    [python, str(worker), "--repo", str(ROOT), "--kind", kind,
+                     "--frames", str(frames), "--tile", str(tile),
+                     "--output", str(onnx_path), "--model", model,
+                     "--model-dir", str(model_dir)],
+                    capture_output=True, text=True, encoding="utf-8", errors="replace",
+                )
+                tail1 = "\n".join((r1.stdout or "").splitlines()[-3:])
+                if r1.returncode != 0:
+                    err1 = "\n".join((r1.stderr or "").splitlines()[-10:])
+                    raise RuntimeError(f"ONNX export failed for {kind}:\n{tail1}\n{err1}")
+                print(f"  [worker] {tail1}", flush=True)
 
-                gc.collect()
-                if torch.cuda.is_available():
-                    torch.cuda.empty_cache()
+                # 2) TRT build
+                r2 = subprocess.run(
+                    [python, str(builder), str(onnx_path), "--output", str(eng_path),
+                     "--workspace-gb", str(workspace_gb)],
+                    capture_output=True, text=True, encoding="utf-8", errors="replace",
+                )
+                tail2 = "\n".join((r2.stdout or "").splitlines()[-3:])
+                if r2.returncode != 0:
+                    err2 = "\n".join((r2.stderr or "").splitlines()[-10:])
+                    raise RuntimeError(f"Engine build failed for {kind}:\n{tail2}\n{err2}")
+                print(f"  [builder] {tail2}", flush=True)
 
-                _build_trt_engine(onnx_path, eng_path, workspace_gb=workspace_gb)
-                elapsed = time.perf_counter() - t0
-                size_mb = eng_path.stat().st_size / (1024 * 1024)
-                print(f"[SeedVR2] Successfully built {stem}.rtxplan ({size_mb:.1f} MB in {elapsed:.1f}s)")
-                status_lines.append(f" - Built {stem}.rtxplan ({size_mb:.1f} MB, {elapsed:.1f}s)")
-
+                size_mb = eng_path.stat().st_size / 2**20
+                status_lines.append(f" - Built {eng_name} ({size_mb:.1f} MB in {time.perf_counter() - t0:.1f}s)")
                 if pbar:
                     pbar.update(1)
 
-            del vae, runner
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
-
-        try:
-            from comfy_execution.utils import get_executing_context
-            node_id = get_executing_context().node_id
-        except Exception:
-            node_id = "seedvr2_trt_vae_builder"
-
-        vae_config: Dict[str, Any] = {
-            "model": model,
-            "device": "cuda:0",
-            "offload_device": "none",
-            "cache_model": False,
-            "encode_tiled": False,
-            "encode_tile_size": 512,
-            "encode_tile_overlap": 64,
-            "decode_tiled": False,
-            "decode_tile_size": 512,
-            "decode_tile_overlap": 64,
-            "tile_debug": "false",
-            "use_tensorrt_vae": True,
-            "vae_backend": "tensorrt",
-            "batch_size": batch_size,
-            "node_id": node_id,
-        }
-
-        status_text = "\n".join(status_lines)
-        return io.NodeOutput(vae_config, status_text)
+        return io.NodeOutput("\n".join(status_lines))
