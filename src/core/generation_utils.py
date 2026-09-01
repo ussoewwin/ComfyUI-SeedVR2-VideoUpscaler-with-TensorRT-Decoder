@@ -131,9 +131,12 @@ def setup_video_transform(ctx: Dict[str, Any], resolution: int, max_resolution: 
         resized_sample = temp_transform(sample_frame)
         true_h, true_w = resized_sample.shape[-2:]
         
-        # Round to even numbers for video codec compatibility (libx264 requirement)
-        true_h = (true_h // 2) * 2
-        true_w = (true_w // 2) * 2
+        # Round to multiples of 8: required by the VAE (stride-8 convs -> latent is 1/8
+        # spatial) and by the TensorRT tile path (tile boundaries must align with
+        # latent boundaries, otherwise smeared/black tiles appear). Multiples of 8
+        # are also even, so libx264 compatibility is preserved.
+        true_h = (true_h // 8) * 8
+        true_w = (true_w // 8) * 8
         
         # Cache for later use in trimming
         ctx['true_target_dims'] = (true_h, true_w)
