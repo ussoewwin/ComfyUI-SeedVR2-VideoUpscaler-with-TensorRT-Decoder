@@ -353,10 +353,10 @@ class SeedVR2LoadTensorRTVAEModel(io.ComfyNode):
                     tooltip="Tile debug visualization mode"
                 ),
                 io.Combo.Input("engine_frames",
-                    options=["auto", "29", "21", "5"],
+                    options=["auto", "185", "205", "29", "21", "5"],
                     default="auto",
                     optional=True,
-                    tooltip="TensorRT engine frame size to use. auto = pick the largest available engine (dedicated > 29f > 21f > 5f)."
+                    tooltip="TensorRT engine frame size to use. auto = pick the largest available engine (dedicated > 185f > 29f > 21f > 5f)."
                 ),
             ],
             outputs=[
