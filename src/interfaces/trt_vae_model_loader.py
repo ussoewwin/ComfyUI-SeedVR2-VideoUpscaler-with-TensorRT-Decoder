@@ -48,7 +48,11 @@ def _available_engine_frames() -> list[str]:
             for pth in ARTIFACTS_DIR.glob("vae_encoder_*f_tile*.rtxplan"):
                 m = re.search(r"_(\d+)f_tile", pth.name)
                 if m:
-                    frames.add(m.group(1))
+                    n = int(m.group(1))
+                    # Only 4n+1 frame counts are valid (the exporter normalizes to 4n+1,
+                    # so e.g. a file named 195f actually contains a 193f graph).
+                    if (n - 1) % 4 == 0:
+                        frames.add(str(n))
     except Exception:
         pass
     return ["auto"] + sorted(frames, key=int, reverse=True)
