@@ -134,7 +134,7 @@ def _encode_single_chunk(sample: torch.Tensor, frames: int, vae: torch.nn.Module
             for x in xs:
                 tile_input = source[:, :, :, y:y + tile, x:x + tile].contiguous()
                 tile_lat = tile_px // 8
-                tile_output = torch.empty((1, 32, latent_frames, tile_lat, tile_lat), device="cuda", dtype=torch.float16)
+                tile_output = torch.zeros((1, 32, latent_frames, tile_lat, tile_lat), device="cuda", dtype=torch.float16)
                 context.set_tensor_address(input_name, tile_input.data_ptr())
                 context.set_tensor_address(output_name, tile_output.data_ptr())
                 if not context.execute_async_v3(stream.cuda_stream):
