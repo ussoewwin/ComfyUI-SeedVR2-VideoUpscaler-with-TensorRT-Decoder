@@ -11,6 +11,7 @@ from .vae_model_loader import SeedVR2LoadVAEModel
 from .torch_compile_settings import SeedVR2TorchCompileSettings
 from .trt_vae_builder import SeedVR2BuildTensorRTVAE
 from .trt_vae_model_loader import SeedVR2LoadTensorRTVAEModel
+SeedVR2LoadTensorRTVAEDecoder,
 
 
 class SeedVR2Extension(ComfyExtension):
@@ -25,6 +26,7 @@ class SeedVR2Extension(ComfyExtension):
             SeedVR2TorchCompileSettings,
             SeedVR2BuildTensorRTVAE,
             SeedVR2LoadTensorRTVAEModel,
+            SeedVR2LoadTensorRTVAEDecoder,
         ]
 
 
@@ -40,6 +42,7 @@ __all__ = [
     'SeedVR2TorchCompileSettings',
     'SeedVR2BuildTensorRTVAE',
     'SeedVR2LoadTensorRTVAEModel',
+    SeedVR2LoadTensorRTVAEDecoder,
     'SeedVR2Extension',
     'comfy_entrypoint',
 ]
