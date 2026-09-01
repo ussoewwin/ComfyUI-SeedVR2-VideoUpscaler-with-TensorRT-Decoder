@@ -127,7 +127,7 @@ def _decode_single_chunk(latent: torch.Tensor, latent_frames: int, vae: torch.nn
     source = torch.nn.functional.pad(source, (0, padded_w - width, 0, padded_h - height))
     out_h, out_w = height * 8, width * 8
     raw_out_h, raw_out_w = padded_h * 8, padded_w * 8
-    result = torch.zeros((1, 3, video_frames, raw_out_h, raw_out_w), device="cuda", dtype=torch.float16)
+    result = torch.zeros((1, 3, video_frames, raw_out_h, raw_out_w), device="cuda", dtype=torch.float32)
     weights = torch.zeros_like(result)
     out_tile, out_overlap = tile * 8, overlap * 8
 
@@ -144,11 +144,11 @@ def _decode_single_chunk(latent: torch.Tensor, latent_frames: int, vae: torch.nn
                 oy, ox = y * 8, x * 8
                 wy = _feather(out_tile, out_overlap, y != ys[0], y != ys[-1], tile_output.device)
                 wx = _feather(out_tile, out_overlap, x != xs[0], x != xs[-1], tile_output.device)
-                window = (wy[:, None] * wx[None, :]).view(1, 1, 1, out_tile, out_tile).to(torch.float16)
-                result[:, :, :, oy:oy + out_tile, ox:ox + out_tile] += tile_output * window
+                window = (wy[:, None] * wx[None, :]).view(1, 1, 1, out_tile, out_tile)
+                result[:, :, :, oy:oy + out_tile, ox:ox + out_tile] += tile_output.float() * window
                 weights[:, :, :, oy:oy + out_tile, ox:ox + out_tile] += window
 
-    decoded = (result.float() / weights.float().clamp_min(1e-6))[:, :, :, :out_h, :out_w].to(latent.dtype)
+    decoded = (result / weights.clamp_min(1e-6))[:, :, :, :out_h, :out_w].to(latent.dtype)
     del context
     return decoded
 
