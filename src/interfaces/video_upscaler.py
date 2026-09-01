@@ -385,7 +385,7 @@ class SeedVR2VideoUpscaler(io.ComfyNode):
         decode_tiled = decode_cfg.get("decode_tiled", vae.get("decode_tiled", False))
         decode_tile_size = decode_cfg.get("decode_tile_size", vae.get("decode_tile_size", 512))
         decode_tile_overlap = decode_cfg.get("decode_tile_overlap", vae.get("decode_tile_overlap", 64))
-        tile_debug = decode_cfg.get("tile_debug", vae.get("tile_debug", False))
+        tile_debug = vae.get("tile_debug", False)
 
         # TorchCompile args (optional connection, can be None)
         dit_torch_compile_args = dit.get("torch_compile_args")

@@ -359,13 +359,6 @@ class SeedVR2LoadTensorRTVAEModel(io.ComfyNode):
                     optional=True,
                     tooltip="Fallback-only setting (ignored on the TRT path)."
                 ),
-                io.Combo.Input("tile_debug",
-                    display_name="Fallback: Tile Debug",
-                    options=["false", "encode", "decode"],
-                    default="false",
-                    optional=True,
-                    tooltip="Fallback-only tile debug visualization mode (ignored on the TRT path)."
-                ),
                 io.Combo.Input("engine_frames",
                     options=_available_engine_frames(),
                     default="auto",
@@ -388,7 +381,6 @@ class SeedVR2LoadTensorRTVAEModel(io.ComfyNode):
         encode_tiled: bool = False,
         encode_tile_size: int = 512,
         encode_tile_overlap: int = 64,
-        tile_debug: str = "false",
         engine_frames: str = "auto",
     ) -> io.NodeOutput:
         try:
@@ -405,7 +397,6 @@ class SeedVR2LoadTensorRTVAEModel(io.ComfyNode):
             "encode_tiled": encode_tiled,
             "encode_tile_size": encode_tile_size,
             "encode_tile_overlap": encode_tile_overlap,
-            "tile_debug": tile_debug,
             "engine_frames": engine_frames,
             "use_tensorrt_vae": True,
             "vae_backend": "tensorrt",
@@ -497,7 +488,6 @@ class SeedVR2LoadTensorRTVAEDecoder(io.ComfyNode):
             "decode_tiled": decode_tiled,
             "decode_tile_size": decode_tile_size,
             "decode_tile_overlap": decode_tile_overlap,
-            "tile_debug": "false",
             "use_tensorrt_vae": True,
             "vae_backend": "tensorrt",
             "engine_frames": engine_frames,
