@@ -47,7 +47,12 @@ def _trt_encode_batch(enc_sample, vae, dit_model, engine_frames_setting):
         raise RuntimeError("No TensorRT VAE encoder engine available")
     if total == engine_frames:
         return trt_encode(enc_sample, vae=vae, dit_model=dit_model, engine_frames=str(engine_frames))
-    stride = engine_frames - 4
+    # Stride must stay a multiple of 4 so chunk boundaries align with latent-frame
+    # boundaries. A non-multiple stride (e.g. 81) produces a latent whose 4-frame
+    # window is missing its leading frames -> corrupt/black frames after decode.
+    stride = ((engine_frames - 4) // 4) * 4
+    if stride < 4:
+        stride = 4
     lat_parts = []
     starts = list(range(0, total - engine_frames + 1, stride))
     if starts[-1] != total - engine_frames:
