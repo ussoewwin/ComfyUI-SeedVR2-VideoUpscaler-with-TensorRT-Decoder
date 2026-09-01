@@ -338,33 +338,33 @@ class SeedVR2LoadTensorRTVAEModel(io.ComfyNode):
                     tooltip="GPU device for VAE inference"
                 ),
                 io.Boolean.Input("encode_tiled",
-                    display_name="フォールバック: Encode Tiled",
+                    display_name="Fallback: Encode Tiled",
                     default=False,
                     optional=True,
-                    tooltip="フォールバック用設定（TRT エンジン使用時は無効）。通常 VAE のエンコードタイル分割。"
+                    tooltip="Fallback-only setting (ignored when the TRT engine is used). Enables tiled encoding on the standard VAE path."
                 ),
                 io.Int.Input("encode_tile_size",
-                    display_name="フォールバック: Encode Tile Size",
+                    display_name="Fallback: Encode Tile Size",
                     default=512,
                     min=64,
                     step=32,
                     optional=True,
-                    tooltip="フォールバック用設定（TRT パスでは無効、エンジンのタイル 256px/512px を使用）。"
+                    tooltip="Fallback-only setting (ignored on the TRT path; the engine uses its own 256px/512px tile)."
                 ),
                 io.Int.Input("encode_tile_overlap",
-                    display_name="フォールバック: Encode Tile Overlap",
+                    display_name="Fallback: Encode Tile Overlap",
                     default=64,
                     min=0,
                     step=32,
                     optional=True,
-                    tooltip="フォールバック用設定（TRT パスでは無効）。"
+                    tooltip="Fallback-only setting (ignored on the TRT path)."
                 ),
                 io.Combo.Input("tile_debug",
-                    display_name="フォールバック: Tile Debug",
+                    display_name="Fallback: Tile Debug",
                     options=["false", "encode", "decode"],
                     default="false",
                     optional=True,
-                    tooltip="フォールバック用のタイルデバッグ表示モード（TRT パスでは無効）。"
+                    tooltip="Fallback-only tile debug visualization mode (ignored on the TRT path)."
                 ),
                 io.Combo.Input("engine_frames",
                     options=_available_engine_frames(),
@@ -443,26 +443,26 @@ class SeedVR2LoadTensorRTVAEDecoder(io.ComfyNode):
                     tooltip="GPU device for VAE inference"
                 ),
                 io.Boolean.Input("decode_tiled",
-                    display_name="フォールバック: Decode Tiled",
+                    display_name="Fallback: Decode Tiled",
                     default=False,
                     optional=True,
-                    tooltip="フォールバック用設定（TRT エンジン使用時は無効）。通常 VAE のデコードタイル分割。"
+                    tooltip="Fallback-only setting (ignored when the TRT engine is used). Enables tiled decoding on the standard VAE path."
                 ),
                 io.Int.Input("decode_tile_size",
-                    display_name="フォールバック: Decode Tile Size",
+                    display_name="Fallback: Decode Tile Size",
                     default=512,
                     min=64,
                     step=32,
                     optional=True,
-                    tooltip="フォールバック用設定（TRT パスでは無効、エンジンのタイル 256px/512px を使用）。"
+                    tooltip="Fallback-only setting (ignored on the TRT path; the engine uses its own 256px/512px tile)."
                 ),
                 io.Int.Input("decode_tile_overlap",
-                    display_name="フォールバック: Decode Tile Overlap",
+                    display_name="Fallback: Decode Tile Overlap",
                     default=64,
                     min=0,
                     step=32,
                     optional=True,
-                    tooltip="フォールバック用設定（TRT パスでは無効）。"
+                    tooltip="Fallback-only setting (ignored on the TRT path)."
                 ),
                 io.Combo.Input("engine_frames",
                     options=_available_engine_frames("decoder"),
