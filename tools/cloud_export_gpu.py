@@ -153,7 +153,8 @@ def main() -> int:
 
     frames = ((args.frames - 1) // 4) * 4 + 1
     lat_frames = (frames - 1) // 4 + 1
-    dec_tile_px = 256 if frames >= 21 else 512
+    # Use the user-chosen tile size for the decoder too (--tile), not a hardcoded 256.
+    dec_tile_px = args.tile
     dec_lat_tile = dec_tile_px // 8
 
     t0 = time.perf_counter()

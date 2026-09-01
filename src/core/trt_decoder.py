@@ -33,17 +33,16 @@ _DECODE_LOCK = Lock()
 
 
 def find_engine_path(latent_frames: int) -> tuple[Path | None, int, int]:
-    # Dedicated static engine for this exact frame count
+    # Prefer the 512px-tile decoder (matches the encoder tile), then 256px.
     video_frames = (latent_frames - 1) * 4 + 1
-    tile = 32 if latent_frames >= 6 else 64
-    overlap = 8 if latent_frames >= 6 else 12
-    tile_px = tile * 8
-
-    name = f"vae_decoder_tile_{tile_px}_{video_frames}f.rtxplan"
-    for d in ARTIFACTS_DIRS:
-        p = d / name
-        if p.exists() and p.stat().st_size > 1_000_000:
-            return p, tile, overlap
+    for tile in (64, 32):
+        overlap = 12 if tile == 64 else 8
+        tile_px = tile * 8
+        name = f"vae_decoder_tile_{tile_px}_{video_frames}f.rtxplan"
+        for d in ARTIFACTS_DIRS:
+            p = d / name
+            if p.exists() and p.stat().st_size > 1_000_000:
+                return p, tile, overlap
     return None, 0, 0
 
 
