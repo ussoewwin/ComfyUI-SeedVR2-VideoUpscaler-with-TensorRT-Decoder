@@ -378,14 +378,14 @@ class SeedVR2VideoUpscaler(io.ComfyNode):
         vae_offload_device = torch.device(vae_offload_str) if vae_offload_str != "none" else None
         tensor_offload_device = torch.device(offload_device) if offload_device != "none" else None
 
-        # VAE tiling configuration
-        encode_tiled = vae.get("encode_tiled", False)
-        encode_tile_size = vae.get("encode_tile_size", 512)
-        encode_tile_overlap = vae.get("encode_tile_overlap", 64)
-        decode_tiled = vae.get("decode_tiled", False)
-        decode_tile_size = vae.get("decode_tile_size", 512)
-        decode_tile_overlap = vae.get("decode_tile_overlap", 64)
-        tile_debug = vae.get("tile_debug", False)
+        # VAE tiling configuration (encode settings from encoder cfg, decode settings from decoder cfg)
+        encode_tiled = encode_cfg.get("encode_tiled", vae.get("encode_tiled", False))
+        encode_tile_size = encode_cfg.get("encode_tile_size", vae.get("encode_tile_size", 512))
+        encode_tile_overlap = encode_cfg.get("encode_tile_overlap", vae.get("encode_tile_overlap", 64))
+        decode_tiled = decode_cfg.get("decode_tiled", vae.get("decode_tiled", False))
+        decode_tile_size = decode_cfg.get("decode_tile_size", vae.get("decode_tile_size", 512))
+        decode_tile_overlap = decode_cfg.get("decode_tile_overlap", vae.get("decode_tile_overlap", 64))
+        tile_debug = decode_cfg.get("tile_debug", vae.get("tile_debug", False))
 
         # TorchCompile args (optional connection, can be None)
         dit_torch_compile_args = dit.get("torch_compile_args")

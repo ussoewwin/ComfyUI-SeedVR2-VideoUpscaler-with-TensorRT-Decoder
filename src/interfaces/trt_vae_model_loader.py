@@ -356,25 +356,7 @@ class SeedVR2LoadTensorRTVAEModel(io.ComfyNode):
                     optional=True,
                     tooltip="TRT パスでは無効。フォールバック時のみ有効。"
                 ),
-                io.Boolean.Input("decode_tiled",
-                    default=False,
-                    optional=True,
-                    tooltip="TRT パスでは無効（エンジンが自動タイル処理）。フォールバック時のみ有効。"
-                ),
-                io.Int.Input("decode_tile_size",
-                    default=512,
-                    min=64,
-                    step=32,
-                    optional=True,
-                    tooltip="TRT パスでは無効（エンジンのタイルサイズ 256px/512px を使用）。フォールバック時のみ有効。"
-                ),
-                io.Int.Input("decode_tile_overlap",
-                    default=64,
-                    min=0,
-                    step=32,
-                    optional=True,
-                    tooltip="TRT パスでは無効。フォールバック時のみ有効。"
-                ),
+
                 io.Combo.Input("tile_debug",
                     options=["false", "encode", "decode"],
                     default="false",
@@ -403,9 +385,6 @@ class SeedVR2LoadTensorRTVAEModel(io.ComfyNode):
         encode_tiled: bool = False,
         encode_tile_size: int = 512,
         encode_tile_overlap: int = 64,
-        decode_tiled: bool = False,
-        decode_tile_size: int = 512,
-        decode_tile_overlap: int = 64,
         tile_debug: str = "false",
         engine_frames: str = "auto",
     ) -> io.NodeOutput:
@@ -423,9 +402,6 @@ class SeedVR2LoadTensorRTVAEModel(io.ComfyNode):
             "encode_tiled": encode_tiled,
             "encode_tile_size": encode_tile_size,
             "encode_tile_overlap": encode_tile_overlap,
-            "decode_tiled": decode_tiled,
-            "decode_tile_size": decode_tile_size,
-            "decode_tile_overlap": decode_tile_overlap,
             "tile_debug": tile_debug,
             "engine_frames": engine_frames,
             "use_tensorrt_vae": True,
@@ -463,6 +439,25 @@ class SeedVR2LoadTensorRTVAEDecoder(io.ComfyNode):
                     default=devices[0],
                     tooltip="GPU device for VAE inference"
                 ),
+                io.Boolean.Input("decode_tiled",
+                    default=False,
+                    optional=True,
+                    tooltip="TRT パスでは無効（エンジンが自動タイル処理）。フォールバック時のみ有効。"
+                ),
+                io.Int.Input("decode_tile_size",
+                    default=512,
+                    min=64,
+                    step=32,
+                    optional=True,
+                    tooltip="TRT パスでは無効（エンジンのタイルサイズ 256px/512px を使用）。フォールバック時のみ有効。"
+                ),
+                io.Int.Input("decode_tile_overlap",
+                    default=64,
+                    min=0,
+                    step=32,
+                    optional=True,
+                    tooltip="TRT パスでは無効。フォールバック時のみ有効。"
+                ),
                 io.Combo.Input("engine_frames",
                     options=_available_engine_frames("decoder"),
                     default="auto",
@@ -479,7 +474,9 @@ class SeedVR2LoadTensorRTVAEDecoder(io.ComfyNode):
         )
 
     @classmethod
-    def execute(cls, model: str, device: str, engine_frames: str = "auto") -> io.NodeOutput:
+    def execute(cls, model: str, device: str, decode_tiled: bool = False,
+                decode_tile_size: int = 512, decode_tile_overlap: int = 64,
+                engine_frames: str = "auto") -> io.NodeOutput:
         try:
             from comfy_execution.utils import get_executing_context
             node_id = get_executing_context().node_id
@@ -491,12 +488,9 @@ class SeedVR2LoadTensorRTVAEDecoder(io.ComfyNode):
             "device": device,
             "offload_device": "none",
             "cache_model": False,
-            "encode_tiled": False,
-            "encode_tile_size": 512,
-            "encode_tile_overlap": 64,
-            "decode_tiled": False,
-            "decode_tile_size": 512,
-            "decode_tile_overlap": 64,
+            "decode_tiled": decode_tiled,
+            "decode_tile_size": decode_tile_size,
+            "decode_tile_overlap": decode_tile_overlap,
             "tile_debug": "false",
             "use_tensorrt_vae": True,
             "vae_backend": "tensorrt",
