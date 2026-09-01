@@ -338,30 +338,33 @@ class SeedVR2LoadTensorRTVAEModel(io.ComfyNode):
                     tooltip="GPU device for VAE inference"
                 ),
                 io.Boolean.Input("encode_tiled",
+                    display_name="フォールバック: Encode Tiled",
                     default=False,
                     optional=True,
-                    tooltip="TRT パスでは無効（エンジンが自動タイル処理）。フォールバック（通常 VAE）時のみ有効。"
+                    tooltip="フォールバック用設定（TRT エンジン使用時は無効）。通常 VAE のエンコードタイル分割。"
                 ),
                 io.Int.Input("encode_tile_size",
+                    display_name="フォールバック: Encode Tile Size",
                     default=512,
                     min=64,
                     step=32,
                     optional=True,
-                    tooltip="TRT パスでは無効（エンジンのタイルサイズ 256px/512px を使用）。フォールバック時のみ有効。"
+                    tooltip="フォールバック用設定（TRT パスでは無効、エンジンのタイル 256px/512px を使用）。"
                 ),
                 io.Int.Input("encode_tile_overlap",
+                    display_name="フォールバック: Encode Tile Overlap",
                     default=64,
                     min=0,
                     step=32,
                     optional=True,
-                    tooltip="TRT パスでは無効。フォールバック時のみ有効。"
+                    tooltip="フォールバック用設定（TRT パスでは無効）。"
                 ),
-
                 io.Combo.Input("tile_debug",
+                    display_name="フォールバック: Tile Debug",
                     options=["false", "encode", "decode"],
                     default="false",
                     optional=True,
-                    tooltip="Tile debug visualization mode"
+                    tooltip="フォールバック用のタイルデバッグ表示モード（TRT パスでは無効）。"
                 ),
                 io.Combo.Input("engine_frames",
                     options=_available_engine_frames(),
@@ -440,23 +443,26 @@ class SeedVR2LoadTensorRTVAEDecoder(io.ComfyNode):
                     tooltip="GPU device for VAE inference"
                 ),
                 io.Boolean.Input("decode_tiled",
+                    display_name="フォールバック: Decode Tiled",
                     default=False,
                     optional=True,
-                    tooltip="TRT パスでは無効（エンジンが自動タイル処理）。フォールバック時のみ有効。"
+                    tooltip="フォールバック用設定（TRT エンジン使用時は無効）。通常 VAE のデコードタイル分割。"
                 ),
                 io.Int.Input("decode_tile_size",
+                    display_name="フォールバック: Decode Tile Size",
                     default=512,
                     min=64,
                     step=32,
                     optional=True,
-                    tooltip="TRT パスでは無効（エンジンのタイルサイズ 256px/512px を使用）。フォールバック時のみ有効。"
+                    tooltip="フォールバック用設定（TRT パスでは無効、エンジンのタイル 256px/512px を使用）。"
                 ),
                 io.Int.Input("decode_tile_overlap",
+                    display_name="フォールバック: Decode Tile Overlap",
                     default=64,
                     min=0,
                     step=32,
                     optional=True,
-                    tooltip="TRT パスでは無効。フォールバック時のみ有効。"
+                    tooltip="フォールバック用設定（TRT パスでは無効）。"
                 ),
                 io.Combo.Input("engine_frames",
                     options=_available_engine_frames("decoder"),
