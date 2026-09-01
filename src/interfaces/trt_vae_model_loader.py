@@ -34,6 +34,26 @@ ROOT = Path(__file__).resolve().parents[2]
 ARTIFACTS_DIR = ROOT / "tensorrt_backend" / "artifacts"
 
 
+def _available_engine_frames() -> list[str]:
+    """Scan the artifacts dir and auto-populate the engine_frames dropdown.
+
+    Any vae_encoder_<N>f_tile*.rtxplan found on disk becomes an option, so
+    dropping an engine into tensorrt_backend/artifacts/ is enough to make it
+    selectable after a ComfyUI restart.
+    """
+    import re
+    frames = set()
+    try:
+        if ARTIFACTS_DIR.is_dir():
+            for pth in ARTIFACTS_DIR.glob("vae_encoder_*f_tile*.rtxplan"):
+                m = re.search(r"_(\d+)f_tile", pth.name)
+                if m:
+                    frames.add(m.group(1))
+    except Exception:
+        pass
+    return ["auto"] + sorted(frames, key=int, reverse=True)
+
+
 class _EncoderModule(torch.nn.Module):
     def __init__(self, vae: torch.nn.Module) -> None:
         super().__init__()
@@ -353,10 +373,10 @@ class SeedVR2LoadTensorRTVAEModel(io.ComfyNode):
                     tooltip="Tile debug visualization mode"
                 ),
                 io.Combo.Input("engine_frames",
-                    options=["auto", "185", "205", "29", "21", "5"],
+                    options=_available_engine_frames(),
                     default="auto",
                     optional=True,
-                    tooltip="TensorRT engine frame size to use. auto = pick the largest available engine (dedicated > 185f > 29f > 21f > 5f)."
+                    tooltip="TensorRT engine frame size. Auto-populated from engines in tensorrt_backend/artifacts/. auto = pick the largest available engine."
                 ),
             ],
             outputs=[
