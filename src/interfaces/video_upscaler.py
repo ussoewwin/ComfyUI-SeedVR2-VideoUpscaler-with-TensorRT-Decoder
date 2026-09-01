@@ -377,6 +377,15 @@ class SeedVR2VideoUpscaler(io.ComfyNode):
         # TorchCompile args (optional connection, can be None)
         dit_torch_compile_args = dit.get("torch_compile_args")
         vae_torch_compile_args = vae.get("torch_compile_args")
+        # TRT パスでは torch.compile は不要（エンジン実行のため）。フォールバック保険として
+        # コードは残し、TRT 有効時のみ None にしてスキップする。
+        _use_trt_vae = bool(
+            vae.get("use_tensorrt_vae", False)
+            or vae.get("vae_backend") == "tensorrt"
+            or kwargs.get("vae_backend") == "tensorrt"
+        )
+        if _use_trt_vae:
+            vae_torch_compile_args = None
         
         # Print header
         debug.print_header()

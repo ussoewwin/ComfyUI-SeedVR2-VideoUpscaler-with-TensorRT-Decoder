@@ -87,6 +87,7 @@ def main() -> int:
     parser.add_argument("--frames", type=int, required=True)
     parser.add_argument("--output", required=True)
     parser.add_argument("--model", default="ema_vae_fp16.safetensors", help="VAE filename")
+    parser.add_argument("--model-dir", default=None, help="VAE model directory (default: <repo>/models)")
     parser.add_argument("--tile", type=int, default=256, choices=[256, 512],
                         help="spatial tile size for the ONNX (256 = 1/4 memory; engine tile must match)")
     args = parser.parse_args()
@@ -127,7 +128,8 @@ def main() -> int:
     with torch.device("meta"):
         vae = VideoAutoencoderKL(**filtered_kwargs)
 
-    vae_file = _find_vae_file(args.model, repo_path / "models")
+    vae_dir = Path(args.model_dir) if args.model_dir else (repo_path / "models")
+    vae_file = _find_vae_file(args.model, vae_dir)
     print(f"Loading VAE weights from {vae_file} to CUDA...", flush=True)
     state_dict = load_file(str(vae_file), device="cuda")
     vae.load_state_dict(state_dict, strict=False, assign=True)
