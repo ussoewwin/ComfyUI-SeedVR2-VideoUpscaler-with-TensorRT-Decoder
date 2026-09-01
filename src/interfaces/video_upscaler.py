@@ -71,9 +71,6 @@ class SeedVR2VideoUpscaler(io.ComfyNode):
                 io.Custom("SEEDVR2_DIT").Input("dit",
                     tooltip="DiT model configuration from SeedVR2 (Down)Load DiT Model node"
                 ),
-                io.Custom("SEEDVR2_VAE").Input("vae",
-                    tooltip="VAE model configuration (backward compat; used for both encode and decode)"
-                ),
                 io.Custom("SEEDVR2_VAE").Input("vae_encode",
                     optional=True,
                     tooltip="TensorRT VAE encoder configuration (separate engine frame size)"
@@ -233,7 +230,7 @@ class SeedVR2VideoUpscaler(io.ComfyNode):
         )
     
     @classmethod
-    def execute(cls, image: torch.Tensor, dit: Dict[str, Any], vae: Dict[str, Any],
+    def execute(cls, image: torch.Tensor, dit: Dict[str, Any],
                 seed: int, resolution: int = 1080, max_resolution: int = 0, batch_size: int = 5,
                 uniform_batch_size: bool = False, temporal_overlap: int = 0, prepend_frames: int = 0,
                 color_correction: str = "wavelet", input_noise_scale: float = 0.0,
@@ -250,7 +247,8 @@ class SeedVR2VideoUpscaler(io.ComfyNode):
         Args:
             image: Input video frames as tensor (N, H, W, C) in [0, 1] range
             dit: DiT model configuration from SeedVR2LoadDiTModel node
-            vae: VAE model configuration from SeedVR2LoadVAEModel node
+            vae_encode: VAE configuration for the encoder path (SeedVR2LoadTensorRTVAEModel or SeedVR2LoadVAEModel)
+            vae_decode: VAE configuration for the decoder path (SeedVR2LoadTensorRTVAEDecoder or SeedVR2LoadVAEModel)
             seed: Random seed for reproducible generation
             resolution: Target resolution for shortest edge (maintains aspect ratio)
             max_resolution: Maximum resolution for any edge (0 = no limit)
@@ -343,20 +341,20 @@ class SeedVR2VideoUpscaler(io.ComfyNode):
         
         # Extract configuration from dict inputs
         dit_model = dit.get("model", "seedvr2_ema_3b_fp16.safetensors")
-        vae_model = vae.get("model", "ema_vae_fp16.safetensors")
-        dit_device = torch.device(dit.get("device", "cuda:0"))
-        vae_device = torch.device(vae.get("device", "cuda:0"))
-        dit_id = dit.get("node_id", "dit_node")
-        vae_id = vae.get("node_id", "vae_node")
+        # Separate encoder/decoder configs (no shared `vae` input anymore)
+        encode_cfg: Dict[str, Any] = vae_encode or {}
+        decode_cfg: Dict[str, Any] = vae_decode or {}
 
-        # Separate encoder/decoder configs (fall back to the shared `vae` input)
-        encode_cfg: Dict[str, Any] = vae_encode or vae or {}
-        decode_cfg: Dict[str, Any] = vae_decode or vae or {}
+        vae_model = encode_cfg.get("model", "ema_vae_fp16.safetensors")
+        dit_device = torch.device(dit.get("device", "cuda:0"))
+        vae_device = torch.device(encode_cfg.get("device", "cuda:0"))
+        dit_id = dit.get("node_id", "dit_node")
+        vae_id = encode_cfg.get("node_id", "vae_node")
 
         # OPTIONAL inputs - use .get() with defaults
         dit_cache = dit.get("cache_model", False)
         attention_mode = dit.get("attention_mode", "sdpa")
-        vae_cache = vae.get("cache_model", False)
+        vae_cache = encode_cfg.get("cache_model", False)
 
         # BlockSwap configuration - construct from individual values
         blocks_to_swap = dit.get("blocks_to_swap", 0)
@@ -373,30 +371,31 @@ class SeedVR2VideoUpscaler(io.ComfyNode):
                 block_swap_config["offload_device"] = torch.device(dit_offload_str)
 
         # Device configuration for offloading - convert "none" to None, else torch.device
-        vae_offload_str = vae.get("offload_device", "none")
+        vae_offload_str = encode_cfg.get("offload_device", "none")
         dit_offload_device = torch.device(dit_offload_str) if dit_offload_str != "none" else None
         vae_offload_device = torch.device(vae_offload_str) if vae_offload_str != "none" else None
         tensor_offload_device = torch.device(offload_device) if offload_device != "none" else None
 
         # VAE tiling configuration (encode settings from encoder cfg, decode settings from decoder cfg)
-        encode_tiled = encode_cfg.get("encode_tiled", vae.get("encode_tiled", False))
-        encode_tile_size = encode_cfg.get("encode_tile_size", vae.get("encode_tile_size", 512))
-        encode_tile_overlap = encode_cfg.get("encode_tile_overlap", vae.get("encode_tile_overlap", 64))
-        decode_tiled = decode_cfg.get("decode_tiled", vae.get("decode_tiled", False))
-        decode_tile_size = decode_cfg.get("decode_tile_size", vae.get("decode_tile_size", 512))
-        decode_tile_overlap = decode_cfg.get("decode_tile_overlap", vae.get("decode_tile_overlap", 64))
-        tile_debug = vae.get("tile_debug", False)
+        encode_tiled = encode_cfg.get("encode_tiled", False)
+        encode_tile_size = encode_cfg.get("encode_tile_size", 512)
+        encode_tile_overlap = encode_cfg.get("encode_tile_overlap", 64)
+        decode_tiled = decode_cfg.get("decode_tiled", False)
+        decode_tile_size = decode_cfg.get("decode_tile_size", 512)
+        decode_tile_overlap = decode_cfg.get("decode_tile_overlap", 64)
+        tile_debug = encode_cfg.get("tile_debug", False)
 
         # TorchCompile args (optional connection, can be None)
         dit_torch_compile_args = dit.get("torch_compile_args")
-        vae_torch_compile_args = vae.get("torch_compile_args")
+        vae_torch_compile_args = encode_cfg.get("torch_compile_args")
         # TRT パスでは torch.compile は不要（エンジン実行のため）なのでスキップする。
         # ただし、TRT エンジンが無い場合は「自動フォールバック」になるため、
         # フォールバック保険として torch.compile を残す。
         _use_trt_vae = bool(
-            vae.get("use_tensorrt_vae", False)
-            or vae.get("vae_backend") == "tensorrt"
-            or kwargs.get("vae_backend") == "tensorrt"
+            encode_cfg.get("use_tensorrt_vae", False)
+            or decode_cfg.get("use_tensorrt_vae", False)
+            or encode_cfg.get("vae_backend") == "tensorrt"
+            or decode_cfg.get("vae_backend") == "tensorrt"
         )
         if _use_trt_vae:
             try:
@@ -473,9 +472,10 @@ class SeedVR2VideoUpscaler(io.ComfyNode):
                 torch_compile_args_vae=vae_torch_compile_args
             )
             runner.use_tensorrt_vae = bool(
-                vae.get("use_tensorrt_vae", False)
-                or vae.get("vae_backend") == "tensorrt"
-                or kwargs.get("vae_backend") == "tensorrt"
+                encode_cfg.get("use_tensorrt_vae", False)
+                or decode_cfg.get("use_tensorrt_vae", False)
+                or encode_cfg.get("vae_backend") == "tensorrt"
+                or decode_cfg.get("vae_backend") == "tensorrt"
             )
             runner.use_tensorrt_engine_frames = encode_cfg.get("engine_frames", "auto")
             runner.use_tensorrt_decode_engine_frames = decode_cfg.get("engine_frames", "auto")
