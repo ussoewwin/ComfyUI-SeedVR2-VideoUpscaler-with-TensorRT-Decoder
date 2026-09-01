@@ -154,6 +154,35 @@ def _decode_single_chunk(latent: torch.Tensor, latent_frames: int, vae: torch.nn
     return decoded
 
 
+def _pick_engine_frames(video_frames: int) -> int | None:
+    """Pick the largest available decoder engine for the requested video frame count."""
+    for cand in (video_frames, 29, 21, 5):
+        path, _, _ = find_engine_path((cand - 1) // 4 + 1)
+        if path is not None:
+            return cand
+    return None
+
+
+@torch.inference_mode()
+def _decode_chunked(latent: torch.Tensor, latent_frames: int, engine_video_frames: int, vae: torch.nn.Module | None = None, dit_model: str | None = None) -> torch.Tensor:
+    """Decode a long latent by splitting it into engine-sized chunks with 1 latent-frame overlap."""
+    engine_latent = (engine_video_frames - 1) // 4 + 1
+    lat_stride = engine_latent - 1
+    _, _, _, lat_h, lat_w = latent.shape
+    out_frames = (latent_frames - 1) * 4 + 1
+    out_h, out_w = lat_h * 8, lat_w * 8
+    result = torch.zeros((1, 3, out_frames, out_h, out_w), device="cuda", dtype=latent.dtype)
+    starts = list(range(0, latent_frames - engine_latent + 1, lat_stride))
+    if starts[-1] != latent_frames - engine_latent:
+        starts.append(latent_frames - engine_latent)
+    for start in starts:
+        chunk = latent[:, :, start:start + engine_latent]
+        sample = _decode_single_chunk(chunk, engine_latent, vae=vae, dit_model=dit_model)
+        out_start = start * 4
+        result[:, :, out_start:out_start + engine_video_frames] = sample
+    return result
+
+
 @torch.inference_mode()
 def decode(latent: torch.Tensor, vae: torch.nn.Module | None = None, dit_model: str | None = None) -> torch.Tensor:
     """
@@ -164,9 +193,16 @@ def decode(latent: torch.Tensor, vae: torch.nn.Module | None = None, dit_model: 
     _, _, latent_frames, _, _ = latent.shape
     video_frames = (latent_frames - 1) * 4 + 1
 
-    print(f"[SeedVR2 TensorRT] 1-Shot Directly decoding {video_frames} frames ({latent_frames} latents) with dedicated {video_frames}f TensorRT engine...")
-    sample = _decode_single_chunk(latent, latent_frames, vae=vae, dit_model=dit_model)
-    return sample
+    engine_video_frames = _pick_engine_frames(video_frames)
+    if engine_video_frames is None:
+        raise FileNotFoundError("No TensorRT VAE decoder engine found (need vae_decoder_tile_256_{5,21,29}f.rtxplan)")
+    if engine_video_frames == video_frames:
+        print(f"[SeedVR2 TensorRT] 1-Shot Directly decoding {video_frames} frames ({latent_frames} latents) with dedicated {video_frames}f TensorRT engine...")
+        return _decode_single_chunk(latent, latent_frames, vae=vae, dit_model=dit_model)
+    engine_latent = (engine_video_frames - 1) // 4 + 1
+    n_chunks = (latent_frames + engine_latent - 2) // (engine_latent - 1)
+    print(f"[SeedVR2 TensorRT] Decoding {video_frames} frames ({latent_frames} latents) in {n_chunks} chunks of {engine_video_frames}f...")
+    return _decode_chunked(latent, latent_frames, engine_video_frames, vae=vae, dit_model=dit_model)
 
 
 def release() -> None:

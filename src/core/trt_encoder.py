@@ -149,6 +149,34 @@ def _encode_single_chunk(sample: torch.Tensor, frames: int, vae: torch.nn.Module
     return encoded
 
 
+def _pick_engine_frames(total_frames: int) -> int | None:
+    """Pick the largest available engine for the requested frame count (dedicated > 29f > 21f > 5f)."""
+    for cand in (total_frames, 29, 21, 5):
+        if find_engine_path(cand) is not None:
+            return cand
+    return None
+
+
+@torch.inference_mode()
+def _encode_chunked(sample: torch.Tensor, total_frames: int, engine_frames: int, vae: torch.nn.Module | None = None, dit_model: str | None = None) -> torch.Tensor:
+    """Encode a long clip by splitting it into engine_frames chunks with 4-frame temporal overlap."""
+    _, _, _, height, width = sample.shape
+    lat_total = (total_frames - 1) // 4 + 1
+    lat_engine = (engine_frames - 1) // 4 + 1
+    stride = engine_frames - 4  # 4-frame overlap -> 1 latent-frame overlap
+    lat_h, lat_w = height // 8, width // 8
+    result = torch.zeros((1, 16, lat_total, lat_h, lat_w), device="cuda", dtype=sample.dtype)
+    starts = list(range(0, total_frames - engine_frames + 1, stride))
+    if starts[-1] != total_frames - engine_frames:
+        starts.append(total_frames - engine_frames)
+    for start in starts:
+        chunk = sample[:, :, start:start + engine_frames]
+        lat = _encode_single_chunk(chunk, engine_frames, vae=vae, dit_model=dit_model)
+        lat_start = start // 4
+        result[:, :, lat_start:lat_start + lat_engine] = lat
+    return result
+
+
 @torch.inference_mode()
 def encode(sample: torch.Tensor, vae: torch.nn.Module | None = None, dit_model: str | None = None) -> torch.Tensor:
     """
@@ -168,9 +196,15 @@ def encode(sample: torch.Tensor, vae: torch.nn.Module | None = None, dit_model: 
         sample = torch.cat([sample, last_frame], dim=2)
         total_frames = req_frames
 
-    print(f"[SeedVR2 TensorRT] 1-Shot Directly encoding {total_frames} frames with dedicated {total_frames}f TensorRT engine...")
-    latent = _encode_single_chunk(sample, total_frames, vae=vae, dit_model=dit_model)
-    return latent
+    engine_frames = _pick_engine_frames(total_frames)
+    if engine_frames is None:
+        raise FileNotFoundError("No TensorRT VAE encoder engine found (need vae_encoder_{5,21,29}f_tile512.rtxplan)")
+    if engine_frames == total_frames:
+        print(f"[SeedVR2 TensorRT] 1-Shot Directly encoding {total_frames} frames with dedicated {total_frames}f TensorRT engine...")
+        return _encode_single_chunk(sample, total_frames, vae=vae, dit_model=dit_model)
+    n_chunks = (total_frames + engine_frames - 5) // (engine_frames - 4)
+    print(f"[SeedVR2 TensorRT] Encoding {total_frames} frames in {n_chunks} chunks of {engine_frames}f (4-frame temporal overlap)...")
+    return _encode_chunked(sample, total_frames, engine_frames, vae=vae, dit_model=dit_model)
 
 
 def release() -> None:
