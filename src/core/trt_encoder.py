@@ -149,8 +149,15 @@ def _encode_single_chunk(sample: torch.Tensor, frames: int, vae: torch.nn.Module
     return encoded
 
 
-def _pick_engine_frames(total_frames: int) -> int | None:
-    """Pick the largest available engine for the requested frame count (dedicated > 29f > 21f > 5f)."""
+def _pick_engine_frames(total_frames: int, preferred: str = "auto") -> int | None:
+    """Pick the engine frame size. preferred (from the loader dropdown) wins if its engine exists."""
+    if preferred != "auto":
+        try:
+            cand = int(preferred)
+            if find_engine_path(cand) is not None:
+                return cand
+        except ValueError:
+            pass
     for cand in (total_frames, 29, 21, 5):
         if find_engine_path(cand) is not None:
             return cand
@@ -178,7 +185,7 @@ def _encode_chunked(sample: torch.Tensor, total_frames: int, engine_frames: int,
 
 
 @torch.inference_mode()
-def encode(sample: torch.Tensor, vae: torch.nn.Module | None = None, dit_model: str | None = None) -> torch.Tensor:
+def encode(sample: torch.Tensor, vae: torch.nn.Module | None = None, dit_model: str | None = None, engine_frames: str = "auto") -> torch.Tensor:
     """
     Encode [B,3,T,H,W] to posterior mean [B,16,(T-1)/4+1,H/8,W/8] in 1 shot using TensorRT engine.
     """
@@ -196,7 +203,7 @@ def encode(sample: torch.Tensor, vae: torch.nn.Module | None = None, dit_model: 
         sample = torch.cat([sample, last_frame], dim=2)
         total_frames = req_frames
 
-    engine_frames = _pick_engine_frames(total_frames)
+    engine_frames = _pick_engine_frames(total_frames, engine_frames)
     if engine_frames is None:
         raise FileNotFoundError("No TensorRT VAE encoder engine found (need vae_encoder_{5,21,29}f_tile512.rtxplan)")
     if engine_frames == total_frames:

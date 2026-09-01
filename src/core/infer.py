@@ -164,7 +164,7 @@ class VideoDiffusionInfer():
                         enc_sample = sample if sample.ndim == 5 else sample.unsqueeze(0)
                         if enc_sample.ndim == 5 and trt_enc_available(enc_sample.shape[2]):
                             self.debug.log(f"Encoding with TensorRT VAE Encoder ({enc_sample.shape[2]} frames)", category="info", indent_level=1)
-                            latent = trt_encode(enc_sample, vae=self.vae, dit_model=self._resolve_dit_name())
+                            latent = trt_encode(enc_sample, vae=self.vae, dit_model=self._resolve_dit_name(), engine_frames=getattr(self, 'use_tensorrt_engine_frames', 'auto'))
                             latent = latent.unsqueeze(2) if latent.ndim == 4 else latent
                             latent = optimized_channels_to_last(latent)
                             latent = (latent - shift) * scale
@@ -287,7 +287,7 @@ class VideoDiffusionInfer():
                         dec_latent = latent if latent.ndim == 5 else latent.unsqueeze(0)
                         if dec_latent.ndim == 5 and trt_dec_available(dec_latent.shape[2]):
                             self.debug.log(f"Decoding with TensorRT VAE Decoder ({dec_latent.shape[2]} latent frames)", category="info", indent_level=1)
-                            sample = trt_decode(dec_latent, vae=self.vae, dit_model=self._resolve_dit_name())
+                            sample = trt_decode(dec_latent, vae=self.vae, dit_model=self._resolve_dit_name(), engine_frames=getattr(self, 'use_tensorrt_engine_frames', 'auto'))
                             if sample.ndim == 5 and sample.shape[0] == 1:
                                 sample = sample.squeeze(0)
                             samples.append(sample)

@@ -352,6 +352,12 @@ class SeedVR2LoadTensorRTVAEModel(io.ComfyNode):
                     optional=True,
                     tooltip="Tile debug visualization mode"
                 ),
+                io.Combo.Input("engine_frames",
+                    options=["auto", "29", "21", "5"],
+                    default="auto",
+                    optional=True,
+                    tooltip="TensorRT engine frame size to use. auto = pick the largest available engine (dedicated > 29f > 21f > 5f)."
+                ),
             ],
             outputs=[
                 io.Custom("SEEDVR2_VAE").Output(
@@ -372,6 +378,7 @@ class SeedVR2LoadTensorRTVAEModel(io.ComfyNode):
         decode_tile_size: int = 512,
         decode_tile_overlap: int = 64,
         tile_debug: str = "false",
+        engine_frames: str = "auto",
     ) -> io.NodeOutput:
         try:
             from comfy_execution.utils import get_executing_context
@@ -391,6 +398,7 @@ class SeedVR2LoadTensorRTVAEModel(io.ComfyNode):
             "decode_tile_size": decode_tile_size,
             "decode_tile_overlap": decode_tile_overlap,
             "tile_debug": tile_debug,
+            "engine_frames": engine_frames,
             "use_tensorrt_vae": True,
             "vae_backend": "tensorrt",
             "node_id": node_id,

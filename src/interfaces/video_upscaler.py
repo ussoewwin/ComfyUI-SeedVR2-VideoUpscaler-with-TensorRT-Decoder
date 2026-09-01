@@ -449,6 +449,7 @@ class SeedVR2VideoUpscaler(io.ComfyNode):
                 or vae.get("vae_backend") == "tensorrt"
                 or kwargs.get("vae_backend") == "tensorrt"
             )
+            runner.use_tensorrt_engine_frames = vae.get("engine_frames", "auto")
 
             # Store cache context in ctx for use in generation phases
             ctx['cache_context'] = cache_context

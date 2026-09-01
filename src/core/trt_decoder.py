@@ -154,8 +154,16 @@ def _decode_single_chunk(latent: torch.Tensor, latent_frames: int, vae: torch.nn
     return decoded
 
 
-def _pick_engine_frames(video_frames: int) -> int | None:
-    """Pick the largest available decoder engine for the requested video frame count."""
+def _pick_engine_frames(video_frames: int, preferred: str = "auto") -> int | None:
+    """Pick the decoder engine frame size. preferred (from the loader dropdown) wins if its engine exists."""
+    if preferred != "auto":
+        try:
+            cand = int(preferred)
+            path, _, _ = find_engine_path((cand - 1) // 4 + 1)
+            if path is not None:
+                return cand
+        except ValueError:
+            pass
     for cand in (video_frames, 29, 21, 5):
         path, _, _ = find_engine_path((cand - 1) // 4 + 1)
         if path is not None:
@@ -184,7 +192,7 @@ def _decode_chunked(latent: torch.Tensor, latent_frames: int, engine_video_frame
 
 
 @torch.inference_mode()
-def decode(latent: torch.Tensor, vae: torch.nn.Module | None = None, dit_model: str | None = None) -> torch.Tensor:
+def decode(latent: torch.Tensor, vae: torch.nn.Module | None = None, dit_model: str | None = None, engine_frames: str = "auto") -> torch.Tensor:
     """
     Decode [B,16,T_lat,H,W] to video [B,3,(T_lat-1)*4+1,H*8,W*8] in 1 shot using TensorRT engine.
     """
@@ -193,7 +201,7 @@ def decode(latent: torch.Tensor, vae: torch.nn.Module | None = None, dit_model: 
     _, _, latent_frames, _, _ = latent.shape
     video_frames = (latent_frames - 1) * 4 + 1
 
-    engine_video_frames = _pick_engine_frames(video_frames)
+    engine_video_frames = _pick_engine_frames(video_frames, engine_frames)
     if engine_video_frames is None:
         raise FileNotFoundError("No TensorRT VAE decoder engine found (need vae_decoder_tile_256_{5,21,29}f.rtxplan)")
     if engine_video_frames == video_frames:
