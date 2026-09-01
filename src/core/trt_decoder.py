@@ -205,11 +205,11 @@ def decode(latent: torch.Tensor, vae: torch.nn.Module | None = None, dit_model: 
     if engine_video_frames is None:
         raise FileNotFoundError("No TensorRT VAE decoder engine found (need vae_decoder_tile_256_{5,21,29}f.rtxplan)")
     if engine_video_frames == video_frames:
-        print(f"[SeedVR2 TensorRT] 1-Shot Directly decoding {video_frames} frames ({latent_frames} latents) with dedicated {video_frames}f TensorRT engine...")
+        print(f"[SeedVR2 TensorRT] Decoding {engine_video_frames}f in 1 shot with dedicated {engine_video_frames}f TensorRT engine...")
         return _decode_single_chunk(latent, latent_frames, vae=vae, dit_model=dit_model)
     engine_latent = (engine_video_frames - 1) // 4 + 1
     n_chunks = (latent_frames + engine_latent - 2) // (engine_latent - 1)
-    print(f"[SeedVR2 TensorRT] Decoding {video_frames} frames ({latent_frames} latents) in {n_chunks} chunks of {engine_video_frames}f...")
+    print(f"[SeedVR2 TensorRT] Decoding {n_chunks} chunks of {engine_video_frames}f with TensorRT engine...")
     return _decode_chunked(latent, latent_frames, engine_video_frames, vae=vae, dit_model=dit_model)
 
 

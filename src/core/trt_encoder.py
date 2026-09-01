@@ -207,10 +207,10 @@ def encode(sample: torch.Tensor, vae: torch.nn.Module | None = None, dit_model: 
     if engine_frames is None:
         raise FileNotFoundError("No TensorRT VAE encoder engine found (need vae_encoder_{5,21,29}f_tile512.rtxplan)")
     if engine_frames == total_frames:
-        print(f"[SeedVR2 TensorRT] 1-Shot Directly encoding {total_frames} frames with dedicated {total_frames}f TensorRT engine...")
+        print(f"[SeedVR2 TensorRT] Encoding {engine_frames}f in 1 shot with dedicated {engine_frames}f TensorRT engine...")
         return _encode_single_chunk(sample, total_frames, vae=vae, dit_model=dit_model)
     n_chunks = (total_frames + engine_frames - 5) // (engine_frames - 4)
-    print(f"[SeedVR2 TensorRT] Encoding {total_frames} frames in {n_chunks} chunks of {engine_frames}f (4-frame temporal overlap)...")
+    print(f"[SeedVR2 TensorRT] Encoding {n_chunks} chunks of {engine_frames}f with TensorRT engine (4-frame temporal overlap)...")
     return _encode_chunked(sample, total_frames, engine_frames, vae=vae, dit_model=dit_model)
 
 
