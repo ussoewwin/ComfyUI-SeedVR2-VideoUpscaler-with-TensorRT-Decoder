@@ -125,7 +125,7 @@ def _encode_single_chunk(sample: torch.Tensor, frames: int, vae: torch.nn.Module
     latent_frames = (frames - 1) // 4 + 1
     latent_h, latent_w = height // 8, width // 8
     raw_h, raw_w = padded_h // 8, padded_w // 8
-    result = torch.zeros((1, 32, latent_frames, raw_h, raw_w), device="cuda", dtype=torch.float32)
+    result = torch.zeros((1, 32, latent_frames, raw_h, raw_w), device="cuda", dtype=torch.float16)
     weights = torch.zeros_like(result)
     overlap_latent = overlap // 8
 
@@ -143,11 +143,11 @@ def _encode_single_chunk(sample: torch.Tensor, frames: int, vae: torch.nn.Module
                 ly, lx = y // 8, x // 8
                 wy = _feather(tile_lat, overlap_latent, y != ys[0], y != ys[-1], tile_output.device)
                 wx = _feather(tile_lat, overlap_latent, x != xs[0], x != xs[-1], tile_output.device)
-                window = (wy[:, None] * wx[None, :]).view(1, 1, 1, tile_lat, tile_lat)
-                result[:, :, :, ly:ly + tile_lat, lx:lx + tile_lat] += tile_output.float() * window
+                window = (wy[:, None] * wx[None, :]).view(1, 1, 1, tile_lat, tile_lat).to(torch.float16)
+                result[:, :, :, ly:ly + tile_lat, lx:lx + tile_lat] += tile_output * window
                 weights[:, :, :, ly:ly + tile_lat, lx:lx + tile_lat] += window
 
-    encoded = (result / weights.clamp_min(1e-6))[:, :16, :, :latent_h, :latent_w].to(sample.dtype)
+    encoded = (result.float() / weights.float().clamp_min(1e-6))[:, :16, :, :latent_h, :latent_w].to(sample.dtype)
     del context
     return encoded
 
