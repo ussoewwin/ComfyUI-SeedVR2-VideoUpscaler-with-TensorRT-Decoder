@@ -108,10 +108,9 @@ def _trt_decode_batch(dec_latent, vae, dit_model, engine_frames_setting):
     result = torch.zeros((1, 3, out_frames, s0.shape[3], s0.shape[4]), device=s0.device, dtype=s0.dtype)
     for sample, out_start in parts:
         result[:, :, out_start:out_start + engine_video_frames] = sample
-    if _TRT_CROP_HW[0] > 0 and _TRT_CROP_HW[1] > 0:
-        h, w = _TRT_CROP_HW[0], _TRT_CROP_HW[1]
-        result = result[:, :, :, :h, :w]
-        _TRT_CROP_HW[0], _TRT_CROP_HW[1] = -1, -1
+    # No crop back: the upscaler rounds the target output dims to multiples of 8
+    # (see generation_utils.prepare_video_transforms), so the padded size IS the
+    # target size. Cropping would only lose resolution.
     return result
 
 
