@@ -214,6 +214,11 @@ def encode(sample: torch.Tensor, vae: torch.nn.Module | None = None, dit_model: 
     return _encode_chunked(sample, total_frames, engine_frames, vae=vae, dit_model=dit_model)
 
 
+def resolve_engine_frames(preferred: str = "auto") -> int | None:
+    """Return the largest available encoder engine frame size (for chunking)."""
+    return _pick_engine_frames(29, preferred)
+
+
 def release() -> None:
     """Clear cached execution contexts and streams to free GPU VRAM."""
     global _ENGINES

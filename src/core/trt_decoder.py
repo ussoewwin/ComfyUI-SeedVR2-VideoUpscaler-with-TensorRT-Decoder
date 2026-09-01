@@ -213,6 +213,11 @@ def decode(latent: torch.Tensor, vae: torch.nn.Module | None = None, dit_model: 
     return _decode_chunked(latent, latent_frames, engine_video_frames, vae=vae, dit_model=dit_model)
 
 
+def resolve_engine_frames(preferred: str = "auto") -> int | None:
+    """Return the largest available decoder engine video-frame size (for chunking)."""
+    return _pick_engine_frames(29, preferred)
+
+
 def release() -> None:
     """Clear cached execution contexts and streams to free GPU VRAM."""
     global _DECODER_ENGINES
