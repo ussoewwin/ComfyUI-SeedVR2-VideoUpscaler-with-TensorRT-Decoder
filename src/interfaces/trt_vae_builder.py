@@ -65,6 +65,13 @@ class SeedVR2BuildTensorRTVAE(io.ComfyNode):
                     tooltip="Spatial tile size. 256px fits larger frame counts in 16GB; "
                             "512px is higher quality but limited to ~21-29 frames on 16GB."
                 ),
+                io.Combo.Input("kind",
+                    options=["both", "encoder", "decoder"],
+                    default="both",
+                    tooltip="Which engine(s) to build: encoder, decoder, or both. "
+                            "Use 'encoder' or 'decoder' alone when the other cannot build "
+                            "(e.g. 512px decoder fails on 16GB)."
+                ),
                 io.Float.Input("workspace_gb",
                     default=8.0,
                     min=1.0,
@@ -72,6 +79,12 @@ class SeedVR2BuildTensorRTVAE(io.ComfyNode):
                     step=0.5,
                     optional=True,
                     tooltip="TensorRT workspace in GB during engine build."
+                ),
+                io.Boolean.Input("min_ws",
+                    default=False,
+                    optional=True,
+                    tooltip="Binary-search the smallest workspace that still builds "
+                            "(minimizes runtime VRAM; slower build)."
                 ),
                 io.Boolean.Input("force_rebuild",
                     default=False,
@@ -88,7 +101,8 @@ class SeedVR2BuildTensorRTVAE(io.ComfyNode):
 
     @classmethod
     def execute(cls, model: str, frames: int = 89, tile_size: str = "256",
-                workspace_gb: float = 8.0, force_rebuild: bool = False) -> io.NodeOutput:
+                kind: str = "both", workspace_gb: float = 8.0, min_ws: bool = False,
+                force_rebuild: bool = False) -> io.NodeOutput:
         frames = ((frames - 1) // 4) * 4 + 1  # normalize to 4n+1
         tile = int(tile_size)
         ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -101,10 +115,13 @@ class SeedVR2BuildTensorRTVAE(io.ComfyNode):
         enc_stem = f"vae_encoder_{frames}f_tile{tile}"
         dec_stem = f"vae_decoder_tile_{tile}_{frames}f"
 
-        jobs = [
-            ("encoder", enc_stem, f"{enc_stem}.rtxplan"),
-            ("decoder", dec_stem, f"{dec_stem}.rtxplan"),
-        ]
+        jobs = []
+        if kind in ("both", "encoder"):
+            jobs.append(("encoder", enc_stem, f"{enc_stem}.rtxplan"))
+        if kind in ("both", "decoder"):
+            jobs.append(("decoder", dec_stem, f"{dec_stem}.rtxplan"))
+        if not jobs:
+            raise ValueError(f"Invalid kind: {kind!r} (expected both/encoder/decoder)")
 
         status_lines = []
         needed = []
@@ -143,9 +160,12 @@ class SeedVR2BuildTensorRTVAE(io.ComfyNode):
                 print(f"  [worker] {tail1}", flush=True)
 
                 # 2) TRT build
+                build_cmd = [python, str(builder), str(onnx_path), "--output", str(eng_path),
+                             "--workspace-gb", str(workspace_gb)]
+                if min_ws:
+                    build_cmd.append("--min-ws")
                 r2 = subprocess.run(
-                    [python, str(builder), str(onnx_path), "--output", str(eng_path),
-                     "--workspace-gb", str(workspace_gb)],
+                    build_cmd,
                     capture_output=True, text=True, encoding="utf-8", errors="replace",
                 )
                 tail2 = "\n".join((r2.stdout or "").splitlines()[-3:])
