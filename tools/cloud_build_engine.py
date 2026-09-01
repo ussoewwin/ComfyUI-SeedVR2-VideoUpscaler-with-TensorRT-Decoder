@@ -10,7 +10,7 @@ architecture, use this script ONLY to build the ONNX (see export_onnx_worker.py)
 and build the engine locally instead.
 
 Usage:
-    python cloud_build_engine.py <onnx_path> --output <engine_path> [--workspace-gb 24]
+    python cloud_build_engine.py <onnx_path> --output <engine_path> [--workspace-gb 24] [--min-ws]
 
 Setup (first time):
     pip install -r cloud_requirements.txt
@@ -29,6 +29,8 @@ def main() -> int:
     parser.add_argument("--output", type=Path, required=True, help="output .rtxplan path")
     parser.add_argument("--workspace-gb", type=float, default=24.0,
                         help="TensorRT workspace limit in GB (default 24)")
+    parser.add_argument("--min-ws", action="store_true",
+                        help="binary-search the smallest workspace that still builds (minimizes runtime VRAM)")
     args = parser.parse_args()
 
     import torch
@@ -53,14 +55,41 @@ def main() -> int:
         return 1
 
     config = builder.create_builder_config()
-    config.set_memory_pool_limit(trt.MemoryPoolType.WORKSPACE, int(args.workspace_gb * (1 << 30)))
+
+    def _build(ws_gb: float):
+        config.set_memory_pool_limit(trt.MemoryPoolType.WORKSPACE, int(ws_gb * (1 << 30)))
+        return builder.build_serialized_network(network, config)
 
     t0 = time.perf_counter()
-    blob = builder.build_serialized_network(network, config)
+    if args.min_ws:
+        # Binary search for the smallest workspace that still builds.
+        lo, hi = 2.0, args.workspace_gb
+        blob = _build(hi)
+        if blob is None:
+            while blob is None and hi <= 48:
+                hi += 2.0
+                blob = _build(hi)
+        if blob is None:
+            print("ERROR: engine build failed even at high workspace", flush=True)
+            return 1
+        while hi - lo > 0.5:
+            mid = (lo + hi) / 2
+            b = _build(mid)
+            if b is not None:
+                blob = b
+                hi = mid
+            else:
+                lo = mid
+        ws_used = hi
+        print(f"Min workspace: {ws_used:.1f} GB (smallest that builds)", flush=True)
+    else:
+        blob = _build(args.workspace_gb)
+        ws_used = args.workspace_gb
+    dt = time.perf_counter() - t0
+
     if blob is None:
         print("ERROR: engine build failed (workspace too small or graph unsupported)", flush=True)
         return 1
-    dt = time.perf_counter() - t0
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_bytes(blob)
