@@ -32,14 +32,15 @@ _ENGINES: dict[str, tuple[object, object, object, str, str, torch.cuda.Stream]] 
 _ENCODE_LOCK = Lock()
 
 
-def find_engine_path(frames: int) -> Path | None:
-    # Prefer the 256px-tile engine (185f x 256), then the 512px one
-    for name in (f"vae_encoder_{frames}f_tile256.rtxplan", f"vae_encoder_{frames}f_tile512.rtxplan"):
+def find_engine_path(frames: int) -> tuple[Path | None, int]:
+    """Return (engine_path, tile_px). Prefers the 256px-tile engine, then 512px."""
+    for tile_px in (256, 512):
+        name = f"vae_encoder_{frames}f_tile{tile_px}.rtxplan"
         for d in ARTIFACTS_DIRS:
             p = d / name
             if p.exists() and p.stat().st_size > 1_000_000:
-                return p
-    return None
+                return p, tile_px
+    return None, 0
 
 
 def is_available(frames: int | None = None) -> bool:
@@ -55,12 +56,12 @@ def _engine(frames: int, vae: torch.nn.Module | None = None, dit_model: str | No
     if cached is not None:
         return cached
 
-    path = find_engine_path(frames)
+    path, tile_px = find_engine_path(frames)
     if path is None:
         print(f"[SeedVR2 TensorRT] Dedicated {frames}f encoder engine not found. Building now...")
         from ..interfaces.trt_vae_model_loader import ensure_trt_engine_for_frames
-        ensure_trt_engine_for_frames(frames, vae=vae)
-        path = find_engine_path(frames)
+        ensure_trt_engine_for_frames(frames, vae=vae, dit_model=dit_model)
+        path, tile_px = find_engine_path(frames)
         if path is None:
             raise FileNotFoundError(f"Failed to build TensorRT VAE encoder engine for {frames} frames")
 
@@ -77,7 +78,7 @@ def _engine(frames: int, vae: torch.nn.Module | None = None, dit_model: str | No
     input_name = next(n for n in names if engine.get_tensor_mode(n) == trt.TensorIOMode.INPUT)
     output_name = next(n for n in names if engine.get_tensor_mode(n) == trt.TensorIOMode.OUTPUT)
     stream = torch.cuda.Stream()
-    cached = (runtime, engine, context, input_name, output_name, stream)
+    cached = (runtime, engine, context, input_name, output_name, stream, tile_px)
     _ENGINES[cache_key] = cached
     return cached
 
@@ -107,16 +108,16 @@ def _feather(length: int, overlap: int, left: bool, right: bool, device: torch.d
 def _encode_single_chunk(sample: torch.Tensor, frames: int, vae: torch.nn.Module | None = None, dit_model: str | None = None) -> torch.Tensor:
     """Encode a single full batch directly in 1 shot with TensorRT."""
     _, _, _, height, width = sample.shape
-    _, engine, _, input_name, output_name, stream = _engine(int(frames), vae=vae, dit_model=dit_model)
+    _, engine, _, input_name, output_name, stream, tile_px = _engine(int(frames), vae=vae, dit_model=dit_model)
     context = engine.create_execution_context()
     if context is None:
         raise RuntimeError("TensorRT could not create a per-batch encoder context")
 
-    # Set input shape for this exact batch size (256px tile engine)
-    context.set_input_shape(input_name, (1, 3, frames, 256, 256))
+    # Set input shape to the engine's tile size (256px or 512px)
+    context.set_input_shape(input_name, (1, 3, frames, tile_px, tile_px))
 
     source = sample.to(device="cuda", dtype=torch.float16).contiguous()
-    tile, overlap = 256, 48
+    tile, overlap = tile_px, (96 if tile_px == 512 else 48)
     ys, xs = _positions(height, tile, overlap), _positions(width, tile, overlap)
     padded_h, padded_w = max(height, ys[-1] + tile), max(width, xs[-1] + tile)
     source = torch.nn.functional.pad(source, (0, padded_w - width, 0, padded_h - height))
@@ -131,18 +132,19 @@ def _encode_single_chunk(sample: torch.Tensor, frames: int, vae: torch.nn.Module
         for y in ys:
             for x in xs:
                 tile_input = source[:, :, :, y:y + tile, x:x + tile].contiguous()
-                tile_output = torch.empty((1, 32, latent_frames, 32, 32), device="cuda", dtype=torch.float16)
+                tile_lat = tile_px // 8
+                tile_output = torch.empty((1, 32, latent_frames, tile_lat, tile_lat), device="cuda", dtype=torch.float16)
                 context.set_tensor_address(input_name, tile_input.data_ptr())
                 context.set_tensor_address(output_name, tile_output.data_ptr())
                 if not context.execute_async_v3(stream.cuda_stream):
                     raise RuntimeError(f"TensorRT VAE encoder failed at tile y={y}, x={x}")
                 stream.synchronize()
                 ly, lx = y // 8, x // 8
-                wy = _feather(32, overlap_latent, y != ys[0], y != ys[-1], tile_output.device)
-                wx = _feather(32, overlap_latent, x != xs[0], x != xs[-1], tile_output.device)
-                window = (wy[:, None] * wx[None, :]).view(1, 1, 1, 32, 32)
-                result[:, :, :, ly:ly + 32, lx:lx + 32] += tile_output.float() * window
-                weights[:, :, :, ly:ly + 32, lx:lx + 32] += window
+                wy = _feather(tile_lat, overlap_latent, y != ys[0], y != ys[-1], tile_output.device)
+                wx = _feather(tile_lat, overlap_latent, x != xs[0], x != xs[-1], tile_output.device)
+                window = (wy[:, None] * wx[None, :]).view(1, 1, 1, tile_lat, tile_lat)
+                result[:, :, :, ly:ly + tile_lat, lx:lx + tile_lat] += tile_output.float() * window
+                weights[:, :, :, ly:ly + tile_lat, lx:lx + tile_lat] += window
 
     encoded = (result / weights.clamp_min(1e-6))[:, :16, :, :latent_h, :latent_w].to(sample.dtype)
     del context
@@ -154,12 +156,12 @@ def _pick_engine_frames(total_frames: int, preferred: str = "auto") -> int | Non
     if preferred != "auto":
         try:
             cand = int(preferred)
-            if find_engine_path(cand) is not None:
+            if find_engine_path(cand)[0] is not None:
                 return cand
         except ValueError:
             pass
     for cand in (total_frames, 29, 21, 5):
-        if find_engine_path(cand) is not None:
+        if find_engine_path(cand)[0] is not None:
             return cand
     return None
 
