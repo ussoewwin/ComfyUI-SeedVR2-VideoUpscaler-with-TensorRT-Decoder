@@ -79,7 +79,10 @@ def _trt_encode_batch(enc_sample, vae, dit_model, engine_frames_setting):
     lat_total = (total - 1) // 4 + 1
     lat0 = lat_parts[0][0]
     latent = torch.zeros((1, 16, lat_total, lat0.shape[3], lat0.shape[4]), device=lat0.device, dtype=lat0.dtype)
-    for lat, lat_start in lat_parts:
+    # Causal encoder: a chunk's leading latents (context-poor) are LESS accurate than
+    # the previous chunk's trailing latents (full context). So earlier chunks win.
+    # Write in reverse so the first chunk keeps its (accurate) values.
+    for lat, lat_start in reversed(lat_parts):
         latent[:, :, lat_start:lat_start + lat.shape[2]] = lat
     return latent
 
