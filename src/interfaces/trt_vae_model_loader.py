@@ -335,40 +335,40 @@ class SeedVR2LoadTensorRTVAEModel(io.ComfyNode):
                 io.Boolean.Input("encode_tiled",
                     default=False,
                     optional=True,
-                    tooltip="Enable tiled encoding (TensorRT handles tiling automatically)"
+                    tooltip="TRT パスでは無効（エンジンが自動タイル処理）。フォールバック（通常 VAE）時のみ有効。"
                 ),
                 io.Int.Input("encode_tile_size",
                     default=512,
                     min=64,
                     step=32,
                     optional=True,
-                    tooltip="Encoding tile size in pixels"
+                    tooltip="TRT パスでは無効（エンジンのタイルサイズ 256px/512px を使用）。フォールバック時のみ有効。"
                 ),
                 io.Int.Input("encode_tile_overlap",
                     default=64,
                     min=0,
                     step=32,
                     optional=True,
-                    tooltip="Pixel overlap between encoding tiles"
+                    tooltip="TRT パスでは無効。フォールバック時のみ有効。"
                 ),
                 io.Boolean.Input("decode_tiled",
                     default=False,
                     optional=True,
-                    tooltip="Enable tiled decoding (TensorRT handles tiling automatically)"
+                    tooltip="TRT パスでは無効（エンジンが自動タイル処理）。フォールバック時のみ有効。"
                 ),
                 io.Int.Input("decode_tile_size",
                     default=512,
                     min=64,
                     step=32,
                     optional=True,
-                    tooltip="Decoding tile size in pixels"
+                    tooltip="TRT パスでは無効（エンジンのタイルサイズ 256px/512px を使用）。フォールバック時のみ有効。"
                 ),
                 io.Int.Input("decode_tile_overlap",
                     default=64,
                     min=0,
                     step=32,
                     optional=True,
-                    tooltip="Pixel overlap between decoding tiles"
+                    tooltip="TRT パスでは無効。フォールバック時のみ有効。"
                 ),
                 io.Combo.Input("tile_debug",
                     options=["false", "encode", "decode"],
