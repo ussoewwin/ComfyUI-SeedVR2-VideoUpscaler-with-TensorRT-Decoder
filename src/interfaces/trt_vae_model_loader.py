@@ -34,19 +34,24 @@ ROOT = Path(__file__).resolve().parents[2]
 ARTIFACTS_DIR = ROOT / "tensorrt_backend" / "artifacts"
 
 
-def _available_engine_frames() -> list[str]:
+def _available_engine_frames(kind: str = "encoder") -> list[str]:
     """Scan the artifacts dir and auto-populate the engine_frames dropdown.
 
-    Any vae_encoder_<N>f_tile*.rtxplan found on disk becomes an option, so
-    dropping an engine into tensorrt_backend/artifacts/ is enough to make it
+    kind="encoder" scans vae_encoder_<N>f_tile*.rtxplan,
+    kind="decoder" scans vae_decoder_tile_*_<N>f.rtxplan.
+    Dropping an engine into tensorrt_backend/artifacts/ is enough to make it
     selectable after a ComfyUI restart.
     """
     import re
     frames = set()
+    pattern = "vae_encoder_*f_tile*.rtxplan" if kind == "encoder" else "vae_decoder_tile_*_*f.rtxplan"
     try:
         if ARTIFACTS_DIR.is_dir():
-            for pth in ARTIFACTS_DIR.glob("vae_encoder_*f_tile*.rtxplan"):
-                m = re.search(r"_(\d+)f_tile", pth.name)
+            for pth in ARTIFACTS_DIR.glob(pattern):
+                if kind == "encoder":
+                    m = re.search(r"_(\d+)f_tile", pth.name)
+                else:
+                    m = re.search(r"_(\d+)f\.rtxplan", pth.name)
                 if m:
                     n = int(m.group(1))
                     # Only 4n+1 frame counts are valid (the exporter normalizes to 4n+1,
@@ -459,7 +464,7 @@ class SeedVR2LoadTensorRTVAEDecoder(io.ComfyNode):
                     tooltip="GPU device for VAE inference"
                 ),
                 io.Combo.Input("engine_frames",
-                    options=_available_engine_frames(),
+                    options=_available_engine_frames("decoder"),
                     default="auto",
                     optional=True,
                     tooltip="TensorRT decoder engine frame size. Auto-populated from artifacts. "
