@@ -89,6 +89,9 @@ def main() -> int:
     parser.add_argument("--model", default="ema_vae_fp16.safetensors")
     parser.add_argument("--model-dir", default=None)
     parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--input", default=None,
+                        help=".pt tensor to use as input video (1,3,T,H,W) instead of random noise. "
+                             "Lets you reproduce the exact real-machine input.")
     args = parser.parse_args()
 
     sys.path.insert(0, str(args.repo))
@@ -145,7 +148,16 @@ def main() -> int:
     width, height = (args.width // 8) * 8, (args.height // 8) * 8
     tile, overlap = args.tile, args.overlap
     torch.manual_seed(args.seed)
-    video = torch.randn(1, 3, frames, height, width, device="cuda", dtype=torch.float16)
+    if args.input:
+        video = torch.load(args.input, map_location="cuda")
+        if video.dim() == 4:
+            video = video.unsqueeze(0)
+        video = video.to(dtype=torch.float16)
+        frames = video.shape[2]
+        height, width = video.shape[3], video.shape[4]
+        print(f"Loaded input: {tuple(video.shape)}", flush=True)
+    else:
+        video = torch.randn(1, 3, frames, height, width, device="cuda", dtype=torch.float16)
     mod = _EncoderModule(vae).eval().to(device="cuda", dtype=torch.float16)
 
     # Shared tiling vars (needed by the FP16 tiled reference and the engine combine).
