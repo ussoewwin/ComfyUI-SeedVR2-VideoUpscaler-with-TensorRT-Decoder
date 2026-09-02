@@ -675,19 +675,6 @@ def upscale_all_batches(
     
     try:
         # Materialize DiT if still on meta device
-        # Free VRAM held by ComfyUI-managed models (other nodes) before loading the DiT.
-        # Without this, models cached by other workflow nodes stay resident and the DiT
-        # hits OOM in Phase 2 (observed: allocated grows to ~20 GiB before first block runs).
-        try:
-            import comfy.model_management as _mm
-            import gc as _gc_pre
-            _gc_pre.collect()
-            _mm.unload_all_models()
-            _mm.soft_empty_cache()
-            torch.cuda.empty_cache()
-            debug.log("Unloaded ComfyUI-managed models before DiT load (VRAM freed for Phase 2)", category="memory", force=True)
-        except Exception as _e:
-            debug.log(f"ComfyUI model unload skipped: {_e}", level="WARNING", category="memory", force=True)
         if runner.dit and next(runner.dit.parameters()).device.type == 'meta':
             materialize_model(runner, "dit", ctx['dit_device'], runner.config, debug)
         else:
