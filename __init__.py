@@ -95,7 +95,6 @@ from .src.interfaces import (
     SeedVR2LoadVAEModel,
     SeedVR2TorchCompileSettings,
     SeedVR2BuildTensorRTVAE,
-    SeedVR2LoadTensorRTVAEModel,
     SeedVR2LoadTensorRTVAEDecoder,
 )
 
