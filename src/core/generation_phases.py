@@ -659,6 +659,10 @@ def upscale_all_batches(
     
     try:
         # Materialize DiT if still on meta device
+        # Phase 1 locals are now released (function returned); return the allocator's
+        # reserved-but-free segments to the driver. Without this, a long chunked
+        # TRT encode (e.g. 84 chunks) fragments reserved VRAM and the DiT OOMs.
+        clear_memory(debug, deep=True, timer_name="phase2_pre_dit")
         if runner.dit and next(runner.dit.parameters()).device.type == 'meta':
             materialize_model(runner, "dit", ctx['dit_device'], runner.config, debug)
         else:
