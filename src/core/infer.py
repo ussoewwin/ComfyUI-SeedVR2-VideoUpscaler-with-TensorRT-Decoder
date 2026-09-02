@@ -86,15 +86,10 @@ def _trt_encode_batch(enc_sample, vae, dit_model, engine_frames_setting):
         raise RuntimeError("No TensorRT VAE encoder engine available")
     if total == engine_frames:
         return trt_encode(enc_sample, vae=vae, dit_model=dit_model, engine_frames=str(engine_frames))
-    # The causal encoder needs ~48+ frames of temporal context for accurate latents.
-    # Chunk with a wide overlap (target 48 video frames) so every emitted latent has
-    # full context; the earlier chunk's accurate tail replaces the later chunk's
-    # context-poor head (earlier-chunk-wins join below).
-    # Stride must stay a multiple of 4 so chunk starts align with latent-frame
-    # boundaries (a non-multiple start shifts latent phase and corrupts output).
-    overlap = min(48, engine_frames - 4)
-    stride = engine_frames - overlap
-    stride = (stride // 4) * 4
+    # Stride must stay a multiple of 4 so chunk boundaries align with latent-frame
+    # boundaries. A non-multiple stride (e.g. 81) produces a latent whose 4-frame
+    # window is missing its leading frames -> corrupt/black frames after decode.
+    stride = ((engine_frames - 4) // 4) * 4
     if stride < 4:
         stride = 4
     lat_parts = []
