@@ -113,8 +113,7 @@ def _feather(length: int, overlap: int, left: bool, right: bool, device: torch.d
 def _decode_single_chunk(latent: torch.Tensor, latent_frames: int, vae: torch.nn.Module | None = None, dit_model: str | None = None) -> torch.Tensor:
     """Decode a single full batch directly in 1 shot with TensorRT."""
     _, _, _, height, width = latent.shape
-    _, engine, _, input_name, output_name, stream, tile, overlap = _engine(int(latent_frames), vae=vae, dit_model=dit_model)
-    context = engine.create_execution_context()
+    _, _, context, input_name, output_name, stream, tile, overlap = _engine(int(latent_frames), vae=vae, dit_model=dit_model)
     if context is None:
         raise RuntimeError("TensorRT could not create a per-batch decoder context")
 
@@ -150,7 +149,6 @@ def _decode_single_chunk(latent: torch.Tensor, latent_frames: int, vae: torch.nn
                 weights[:, :, :, oy:oy + out_tile, ox:ox + out_tile] += window
 
     decoded = (result / weights.clamp_min(1e-6)).clamp(-2.0, 2.0)[:, :, :, :out_h, :out_w].to(latent.dtype)
-    del context
     return decoded
 
 
