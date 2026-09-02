@@ -692,7 +692,6 @@ def upscale_all_batches(
                             model_name="DiT", debug=debug, runner=runner)
 
         debug.log_memory_state("After DiT loading for upscaling", detailed_tensors=False)
-        debug.log(f"[VRAM probe] Phase2 start: allocated={torch.cuda.memory_allocated()/2**30:.2f} GiB reserved={torch.cuda.memory_reserved()/2**30:.2f} GiB", category="memory", force=True)
 
         for batch_idx, latent in enumerate(ctx['all_latents']):
             if latent is None:
