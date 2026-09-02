@@ -109,8 +109,7 @@ def _feather(length: int, overlap: int, left: bool, right: bool, device: torch.d
 def _encode_single_chunk(sample: torch.Tensor, frames: int, vae: torch.nn.Module | None = None, dit_model: str | None = None) -> torch.Tensor:
     """Encode a single full batch directly in 1 shot with TensorRT."""
     _, _, _, height, width = sample.shape
-    _, engine, _, input_name, output_name, stream, tile_px = _engine(int(frames), vae=vae, dit_model=dit_model)
-    context = engine.create_execution_context()
+    _, _, context, input_name, output_name, stream, tile_px = _engine(int(frames), vae=vae, dit_model=dit_model)
     if context is None:
         raise RuntimeError("TensorRT could not create a per-batch encoder context")
 
@@ -151,7 +150,6 @@ def _encode_single_chunk(sample: torch.Tensor, frames: int, vae: torch.nn.Module
                 weights[:, :, :, ly:ly + tile_lat, lx:lx + tile_lat] += window
 
     encoded = (result / weights.clamp_min(1e-6))[:, :16, :, :latent_h, :latent_w].to(sample.dtype)
-    del context
     return encoded
 
 
