@@ -243,7 +243,9 @@ class VideoDiffusionInfer():
             # VAE process by each group.
             for sample in batches:
                 # Check TensorRT VAE encoder
-                if getattr(self, "use_tensorrt_vae", False) or os.environ.get("SEEDVR2_TRT_ENCODER", "0") == "1":
+                _enc_trt = getattr(self, "use_tensorrt_vae_encode",
+                                   getattr(self, "use_tensorrt_vae", False))
+                if _enc_trt or os.environ.get("SEEDVR2_TRT_ENCODER", "0") == "1":
                     try:
                         from .trt_encoder import is_available as trt_enc_available, encode as trt_encode
                         enc_sample = sample if sample.ndim == 5 else sample.unsqueeze(0)
@@ -366,7 +368,9 @@ class VideoDiffusionInfer():
                 latent = latent.squeeze(2)
 
                 # Check TensorRT VAE decoder
-                if getattr(self, "use_tensorrt_vae", False) or os.environ.get("SEEDVR2_TRT_DECODER", "0") == "1":
+                _dec_trt = getattr(self, "use_tensorrt_vae_decode",
+                                   getattr(self, "use_tensorrt_vae", False))
+                if _dec_trt or os.environ.get("SEEDVR2_TRT_DECODER", "0") == "1":
                     try:
                         from .trt_decoder import is_available as trt_dec_available, decode as trt_decode
                         dec_latent = latent if latent.ndim == 5 else latent.unsqueeze(0)

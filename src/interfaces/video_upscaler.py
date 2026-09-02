@@ -471,11 +471,18 @@ class SeedVR2VideoUpscaler(io.ComfyNode):
                 torch_compile_args_dit=dit_torch_compile_args,
                 torch_compile_args_vae=vae_torch_compile_args
             )
-            runner.use_tensorrt_vae = bool(
+            # Separate TRT flags: encode and decode must not force each other
+            # (e.g. TRT decoder + FP16 encoder must keep the encoder on the FP16 path).
+            runner.use_tensorrt_vae_encode = bool(
                 encode_cfg.get("use_tensorrt_vae", False)
-                or decode_cfg.get("use_tensorrt_vae", False)
                 or encode_cfg.get("vae_backend") == "tensorrt"
+            )
+            runner.use_tensorrt_vae_decode = bool(
+                decode_cfg.get("use_tensorrt_vae", False)
                 or decode_cfg.get("vae_backend") == "tensorrt"
+            )
+            runner.use_tensorrt_vae = (
+                runner.use_tensorrt_vae_encode or runner.use_tensorrt_vae_decode
             )
             runner.use_tensorrt_engine_frames = encode_cfg.get("engine_frames", "auto")
             runner.use_tensorrt_decode_engine_frames = decode_cfg.get("engine_frames", "auto")
