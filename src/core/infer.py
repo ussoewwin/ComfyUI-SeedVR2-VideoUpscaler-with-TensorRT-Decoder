@@ -63,6 +63,12 @@ def _trt_encode_batch(enc_sample, vae, dit_model, engine_frames_setting):
     4-frame temporal overlap; the encoder never receives more than engine_frames.
     """
     from .trt_encoder import encode as trt_encode, resolve_engine_frames
+    import os as _os
+    _sd = _os.environ.get("SEEDVR2_SAVE_LATENT_DIR")
+    if _sd:
+        from pathlib import Path as _P
+        _P(_sd).mkdir(parents=True, exist_ok=True)
+        torch.save(enc_sample.float().cpu(), _P(_sd) / "enc_input_raw.pt")
     total = enc_sample.shape[2]
     # Pad spatial dims to multiples of 8 so tile boundaries align with latent boundaries.
     h, w = enc_sample.shape[3], enc_sample.shape[4]
@@ -73,6 +79,8 @@ def _trt_encode_batch(enc_sample, vae, dit_model, engine_frames_setting):
         _TRT_CROP_HW[0], _TRT_CROP_HW[1] = h, w
     else:
         _TRT_CROP_HW[0], _TRT_CROP_HW[1] = -1, -1
+    if _sd:
+        torch.save(enc_sample.float().cpu(), _P(_sd) / "enc_input_padded.pt")
     engine_frames = resolve_engine_frames(engine_frames_setting)
     if engine_frames is None:
         raise RuntimeError("No TensorRT VAE encoder engine available")
