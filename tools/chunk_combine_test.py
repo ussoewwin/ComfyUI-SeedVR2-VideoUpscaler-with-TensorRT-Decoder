@@ -135,6 +135,9 @@ def main() -> int:
     # ---- Chunked encode (mirror of infer._trt_encode_batch) ----
     if args.overlap_frames > 0:
         stride = engine_frames - args.overlap_frames
+        # Chunk start MUST stay on a multiple of 4 (latent grid alignment).
+        # A non-multiple start (e.g. 53) shifts latent phase and corrupts the combine.
+        stride = (stride // 4) * 4
         if stride < 4:
             stride = 4
     else:
