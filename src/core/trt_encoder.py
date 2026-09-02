@@ -130,11 +130,7 @@ def _encode_single_chunk(sample: torch.Tensor, frames: int, vae: torch.nn.Module
     raw_h, raw_w = padded_h // 8, padded_w // 8
     result = torch.zeros((1, 32, latent_frames, raw_h, raw_w), device="cuda", dtype=torch.float32)
     weights = torch.zeros_like(result)
-    # Tile-edge discard instead of feathering: a tile's edges are encoded with
-    # zero-padding where the real video continues, so edge latents are inaccurate.
-    # Discard `edge` latent px per side (except at the real video border, where
-    # zero-padding matches the FP16 path). The kept region is the accurate center.
-    edge = 6  # latent px == 48 video px (half of the 96px overlap)
+    overlap_latent = overlap // 8
 
     with _ENCODE_LOCK, torch.cuda.stream(stream):
         for y in ys:
@@ -147,16 +143,12 @@ def _encode_single_chunk(sample: torch.Tensor, frames: int, vae: torch.nn.Module
                 if not context.execute_async_v3(stream.cuda_stream):
                     raise RuntimeError(f"TensorRT VAE encoder failed at tile y={y}, x={x}")
                 stream.synchronize()
-                e_top = edge if y > ys[0] else 0
-                e_bot = edge if y + tile < padded_h else 0
-                e_lft = edge if x > xs[0] else 0
-                e_rgt = edge if x + tile < padded_w else 0
-                inner = tile_output[:, :, :, e_top:tile_lat - e_bot, e_lft:tile_lat - e_rgt]
-                ly = y // 8 + e_top
-                lx = x // 8 + e_lft
-                ih, iw = inner.shape[3], inner.shape[4]
-                result[:, :, :, ly:ly + ih, lx:lx + iw] += inner.float()
-                weights[:, :, :, ly:ly + ih, lx:lx + iw] += 1.0
+                ly, lx = y // 8, x // 8
+                wy = _feather(tile_lat, overlap_latent, y != ys[0], y != ys[-1], tile_output.device)
+                wx = _feather(tile_lat, overlap_latent, x != xs[0], x != xs[-1], tile_output.device)
+                window = (wy[:, None] * wx[None, :]).view(1, 1, 1, tile_lat, tile_lat)
+                result[:, :, :, ly:ly + tile_lat, lx:lx + tile_lat] += tile_output.float() * window
+                weights[:, :, :, ly:ly + tile_lat, lx:lx + tile_lat] += window
 
     encoded = (result / weights.clamp_min(1e-6))[:, :16, :, :latent_h, :latent_w].to(sample.dtype)
     del context
