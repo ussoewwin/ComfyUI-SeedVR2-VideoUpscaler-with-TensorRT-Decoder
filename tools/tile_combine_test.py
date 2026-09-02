@@ -197,7 +197,7 @@ def main() -> int:
                     t_in = source[:, :, :, y:y + tile, x:x + tile].contiguous()
                     # Posterior mode (= mean, deterministic) via the full VAE encode so the
                     # internal temporal slicing keeps 101f tiles within VRAM.
-                    t_out = vae.encode(t_in).posterior.mode().squeeze(2).float()
+                    t_out = vae.encode(t_in).latent_dist.mode().squeeze(2).float()
                     ly, lx = y // 8, x // 8
                     wy = feather(tile_lat, overlap_latent, y != ys[0], y != ys[-1], t_out.device)
                     wx = feather(tile_lat, overlap_latent, x != xs[0], x != xs[-1], t_out.device)
