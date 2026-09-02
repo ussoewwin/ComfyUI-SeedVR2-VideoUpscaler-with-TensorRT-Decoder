@@ -53,6 +53,10 @@ def main() -> int:
     parser.add_argument("--repo", required=True)
     parser.add_argument("--total", type=int, default=89, help="total frames (4n+1)")
     parser.add_argument("--engine-frames", type=int, default=45, help="chunk/engine frames (4n+1)")
+    parser.add_argument("--overlap-frames", type=int, default=0,
+                        help="temporal overlap between chunks in video frames. 0 = current "
+                             "auto stride ((engine-4)//4*4). Larger overlap (e.g. 40-48) gives "
+                             "later chunks full temporal context, at the cost of more chunks.")
     parser.add_argument("--spatial", type=int, default=256, help="spatial size (square; keep small for VRAM)")
     parser.add_argument("--model", default="ema_vae_fp16.safetensors")
     parser.add_argument("--model-dir", default=None)
@@ -129,9 +133,14 @@ def main() -> int:
     print(f"Full encode: total {total}f mean16 {tuple(full_mean.shape)} std {full_mean.std():.4f}", flush=True)
 
     # ---- Chunked encode (mirror of infer._trt_encode_batch) ----
-    stride = ((engine_frames - 4) // 4) * 4
-    if stride < 4:
-        stride = 4
+    if args.overlap_frames > 0:
+        stride = engine_frames - args.overlap_frames
+        if stride < 4:
+            stride = 4
+    else:
+        stride = ((engine_frames - 4) // 4) * 4
+        if stride < 4:
+            stride = 4
     starts = list(range(0, total - engine_frames + 1, stride))
     if starts[-1] != total - engine_frames:
         starts.append(total - engine_frames)
