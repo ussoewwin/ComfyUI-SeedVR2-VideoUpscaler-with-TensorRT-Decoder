@@ -574,6 +574,22 @@ def encode_all_batches(
         # reserved-but-free blocks (counted as in-use under WDDM), shrinking
         # the headroom available for inductor autotune allocations.
         clear_memory(debug, deep=True, timer_name="phase1_end")
+        import gc as _gc1
+        _gc1.collect()
+        torch.cuda.empty_cache()
+        _total = torch.cuda.memory_allocated()
+        _big = []
+        for _obj in _gc1.get_objects():
+            try:
+                if torch.is_tensor(_obj) and _obj.is_cuda:
+                    _n = _obj.numel() * _obj.element_size()
+                    if _n >= 100 * 2**20:
+                        _big.append((_n, tuple(_obj.shape), str(_obj.dtype)))
+            except Exception:
+                pass
+        _big.sort(reverse=True)
+        _top = "; ".join(f"{_n/2**30:.2f}GiB {_s} {_d}" for _n, _s, _d in _big[:8])
+        debug.log(f"[VRAM probe:phase1_end] allocated={_total/2**30:.2f} GiB, tensors>=100MiB: {len(_big)} | top: {_top}", category="memory", force=True)
     
     debug.end_timer("phase1_encoding", "Phase 1: VAE encoding complete", show_breakdown=True)
     debug.log_memory_state("After phase 1 (VAE encoding)", show_tensors=False)
@@ -692,7 +708,25 @@ def upscale_all_batches(
                             model_name="DiT", debug=debug, runner=runner)
 
         debug.log_memory_state("After DiT loading for upscaling", detailed_tensors=False)
-        debug.log(f"[VRAM probe] Phase2 start: allocated={torch.cuda.memory_allocated()/2**30:.2f} GiB reserved={torch.cuda.memory_reserved()/2**30:.2f} GiB", category="memory", force=True)
+        def _vram_probe(tag):
+            import gc as _gc
+            _gc.collect()
+            torch.cuda.empty_cache()
+            total = torch.cuda.memory_allocated()
+            big = []
+            for _obj in _gc.get_objects():
+                try:
+                    if torch.is_tensor(_obj) and _obj.is_cuda:
+                        n = _obj.numel() * _obj.element_size()
+                        if n >= 100 * 2**20:
+                            big.append((n, tuple(_obj.shape), str(_obj.dtype)))
+                except Exception:
+                    pass
+            big.sort(reverse=True)
+            top = "; ".join(f"{n/2**30:.2f}GiB {s} {d}" for n, s, d in big[:8])
+            debug.log(f"[VRAM probe:{tag}] allocated={total/2**30:.2f} GiB, tensors>=100MiB: {len(big)} | top: {top}", category="memory", force=True)
+
+        _vram_probe("phase2_start")
 
         for batch_idx, latent in enumerate(ctx['all_latents']):
             if latent is None:
