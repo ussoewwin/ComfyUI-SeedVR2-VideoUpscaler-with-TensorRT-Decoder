@@ -37,8 +37,9 @@ class _EncoderModule(torch.nn.Module):
 
 
 def configure_fixed_vae(vae: torch.nn.Module) -> None:
-    if hasattr(vae, "disable_slicing"):
-        vae.disable_slicing()
+    # Keep slicing ENABLED here: the test feeds 101f tiles to the FP16 encoder and
+    # needs the VAE's internal temporal slicing to stay within VRAM (the real
+    # ComfyUI path encodes frame-by-frame with memory state carry-over).
     if hasattr(vae, "set_memory_limit"):
         vae.set_memory_limit(None, None)
     for module in vae.modules():
@@ -188,20 +189,22 @@ def main() -> int:
         print("Skipping full encode -> using FP16 tiled combine as reference", flush=True)
     if full_mean is None:
         # FP16 tiled reference (feather combine of per-tile FP16 encodes)
-        ref = torch.zeros((1, 32, latent_frames, raw_h, raw_w), device="cuda", dtype=torch.float32)
+        ref = torch.zeros((1, 16, latent_frames, raw_h, raw_w), device="cuda", dtype=torch.float32)
         refw = torch.zeros_like(ref)
         with torch.inference_mode():
             for y in ys:
                 for x in xs:
                     t_in = source[:, :, :, y:y + tile, x:x + tile].contiguous()
-                    t_out = mod(t_in)
+                    # Posterior mode (= mean, deterministic) via the full VAE encode so the
+                    # internal temporal slicing keeps 101f tiles within VRAM.
+                    t_out = vae.encode(t_in).posterior.mode().squeeze(2).float()
                     ly, lx = y // 8, x // 8
                     wy = feather(tile_lat, overlap_latent, y != ys[0], y != ys[-1], t_out.device)
                     wx = feather(tile_lat, overlap_latent, x != xs[0], x != xs[-1], t_out.device)
                     win = (wy[:, None] * wx[None, :]).view(1, 1, 1, tile_lat, tile_lat)
-                    ref[:, :, :, ly:ly + tile_lat, lx:lx + tile_lat] += t_out.float() * win
+                    ref[:, :, :, ly:ly + tile_lat, lx:lx + tile_lat] += t_out * win
                     refw[:, :, :, ly:ly + tile_lat, lx:lx + tile_lat] += win
-        full_mean = (ref / refw.clamp_min(1e-6))[:, :16, :, :height // 8, :width // 8]
+        full_mean = (ref / refw.clamp_min(1e-6))[:, :, :, :height // 8, :width // 8]
         print(f"FP16 tiled reference: {tuple(full_mean.shape)}", flush=True)
 
     # ---- Tiled encode + feather combine (mirror of trt_encoder._encode_single_chunk) ----
