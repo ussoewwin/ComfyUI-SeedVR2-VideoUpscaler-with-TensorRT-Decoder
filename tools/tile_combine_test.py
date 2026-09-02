@@ -148,6 +148,17 @@ def main() -> int:
     video = torch.randn(1, 3, frames, height, width, device="cuda", dtype=torch.float16)
     mod = _EncoderModule(vae).eval().to(device="cuda", dtype=torch.float16)
 
+    # Shared tiling vars (needed by the FP16 tiled reference and the engine combine).
+    ys = positions(height, tile, overlap)
+    xs = positions(width, tile, overlap)
+    padded_h = max(height, ys[-1] + tile)
+    padded_w = max(width, xs[-1] + tile)
+    source = F.pad(video, (0, padded_w - width, 0, padded_h - height))
+    latent_frames = (frames - 1) // 4 + 1
+    raw_h, raw_w = padded_h // 8, padded_w // 8
+    overlap_latent = overlap // 8
+    tile_lat = tile // 8
+
     # ---- Reference: single full encode (mean 16ch). For large inputs that OOM,
     # fall back to a full FP16 tiled encode (the combine logic was verified to be
     # accurate in the small-size test, so this reference is still valid).
@@ -182,17 +193,8 @@ def main() -> int:
         print(f"FP16 tiled reference: {tuple(full_mean.shape)}", flush=True)
 
     # ---- Tiled encode + feather combine (mirror of trt_encoder._encode_single_chunk) ----
-    ys = positions(height, tile, overlap)
-    xs = positions(width, tile, overlap)
-    padded_h = max(height, ys[-1] + tile)
-    padded_w = max(width, xs[-1] + tile)
-    source = F.pad(video, (0, padded_w - width, 0, padded_h - height))
-    latent_frames = (frames - 1) // 4 + 1
-    raw_h, raw_w = padded_h // 8, padded_w // 8
     result = torch.zeros((1, 32, latent_frames, raw_h, raw_w), device="cuda", dtype=torch.float32)
     weights = torch.zeros_like(result)
-    overlap_latent = overlap // 8
-    tile_lat = tile // 8
 
     # Optional: run the real TensorRT engine per tile.
     engine_ctx = None
