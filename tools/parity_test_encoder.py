@@ -183,6 +183,25 @@ def main() -> int:
         mean_fp16.flatten(2).transpose(1, 2), mean_trt.flatten(2).transpose(1, 2), dim=-1)
     print(f"[mean16]   cosine sim: mean {cos.mean():.6f}  min {cos.min():.6f}", flush=True)
 
+    # Spatial diff map: local anomalies (e.g. top-left) are invisible in global stats.
+    if mean_fp16.dim() == 5:
+        # channels-first (B,C,T,H,W)
+        sp = md.mean(dim=(0, 1, 2))
+    else:
+        sp = md.mean(dim=(0, 1))
+    H, W = sp.shape
+    quad = {
+        "top-left": sp[: max(1, H // 8), : max(1, W // 8)].mean().item(),
+        "top-right": sp[: max(1, H // 8), -max(1, W // 8):].mean().item(),
+        "bottom-left": sp[-max(1, H // 8):, : max(1, W // 8)].mean().item(),
+        "bottom-right": sp[-max(1, H // 8):, -max(1, W // 8):].mean().item(),
+        "whole": sp.mean().item(),
+    }
+    print(f"[mean16] spatial (corner {max(1,H//8)}x{max(1,W//8)}):", flush=True)
+    for k, v in quad.items():
+        ratio = v / quad["whole"] if quad["whole"] > 0 else 0
+        print(f"    {k:12s}: {v:.4f}  ({ratio:.1f}x whole)", flush=True)
+
     verdict = "MATCH" if rel.mean() < 0.05 else "MISMATCH"
     print(f"VERDICT: {verdict} (mean rel err {rel.mean():.6f})", flush=True)
     return 0
