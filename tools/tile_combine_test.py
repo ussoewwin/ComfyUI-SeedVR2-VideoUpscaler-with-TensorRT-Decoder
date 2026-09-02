@@ -79,6 +79,10 @@ def main() -> int:
     parser.add_argument("--frames", type=int, default=21)
     parser.add_argument("--tile", type=int, default=256)
     parser.add_argument("--overlap", type=int, default=96)
+    parser.add_argument("--engine", default=None,
+                        help=".rtxplan encoder engine. If set, each tile runs the actual TRT "
+                             "engine instead of the PyTorch stand-in (tests multi-tile engine "
+                             "execution against a single full FP16 encode).")
     parser.add_argument("--model", default="ema_vae_fp16.safetensors")
     parser.add_argument("--model-dir", default=None)
     parser.add_argument("--seed", type=int, default=0)
@@ -160,11 +164,34 @@ def main() -> int:
     overlap_latent = overlap // 8
     tile_lat = tile // 8
 
+    # Optional: run the real TensorRT engine per tile.
+    engine_ctx = None
+    if args.engine:
+        import tensorrt_rtx as trt
+        runtime = trt.Runtime(trt.Logger(trt.Logger.WARNING))
+        eng = runtime.deserialize_cuda_engine(Path(args.engine).read_bytes())
+        names = [eng.get_tensor_name(i) for i in range(eng.num_io_tensors)]
+        ein = next(n for n in names if eng.get_tensor_mode(n) == trt.TensorIOMode.INPUT)
+        eout = next(n for n in names if eng.get_tensor_mode(n) == trt.TensorIOMode.OUTPUT)
+        ectx = eng.create_execution_context()
+        eout_shape = tuple(eng.get_tensor_shape(eout))
+        print(f"Engine: {ein}{tuple(eng.get_tensor_shape(ein))} -> {eout}{eout_shape}", flush=True)
+        engine_ctx = (ectx, ein, eout, eout_shape)
+
     with torch.inference_mode():
         for y in ys:
             for x in xs:
                 tile_input = source[:, :, :, y:y + tile, x:x + tile].contiguous()
-                tile_output = mod(tile_input)  # engine stand-in
+                if engine_ctx is not None:
+                    ectx, ein, eout, eout_shape = engine_ctx
+                    tile_output = torch.empty(eout_shape, device="cuda", dtype=torch.float16)
+                    ectx.set_tensor_address(ein, tile_input.data_ptr())
+                    ectx.set_tensor_address(eout, tile_output.data_ptr())
+                    if not ectx.execute_async_v3(torch.cuda.current_stream().cuda_stream):
+                        raise RuntimeError(f"engine failed at tile y={y}, x={x}")
+                    torch.cuda.current_stream().synchronize()
+                else:
+                    tile_output = mod(tile_input)  # engine stand-in (FP16)
                 ly, lx = y // 8, x // 8
                 wy = feather(tile_lat, overlap_latent, y != ys[0], y != ys[-1], tile_output.device)
                 wx = feather(tile_lat, overlap_latent, x != xs[0], x != xs[-1], tile_output.device)
