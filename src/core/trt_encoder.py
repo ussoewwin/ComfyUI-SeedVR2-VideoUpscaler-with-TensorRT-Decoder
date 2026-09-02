@@ -118,7 +118,10 @@ def _encode_single_chunk(sample: torch.Tensor, frames: int, vae: torch.nn.Module
     context.set_input_shape(input_name, (1, 3, frames, tile_px, tile_px))
 
     source = sample.to(device="cuda", dtype=torch.float16).contiguous()
-    tile, overlap = tile_px, (96 if tile_px == 512 else 48)
+    # Wide overlap (96px on 256px tiles = 37.5%) to keep the tile-edge zero-padding
+    # influence out of the blended region. Small tiles make the receptive-field
+    # edge effect proportionally larger, so 256px needs a wider overlap than 512px.
+    tile, overlap = tile_px, 96
     ys, xs = _positions(height, tile, overlap), _positions(width, tile, overlap)
     padded_h, padded_w = max(height, ys[-1] + tile), max(width, xs[-1] + tile)
     source = torch.nn.functional.pad(source, (0, padded_w - width, 0, padded_h - height))
