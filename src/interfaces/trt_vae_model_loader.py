@@ -365,6 +365,12 @@ class SeedVR2LoadTensorRTVAEModel(io.ComfyNode):
                     optional=True,
                     tooltip="TensorRT engine frame size. Auto-populated from engines in tensorrt_backend/artifacts/. auto = pick the largest available engine."
                 ),
+                io.Combo.Input("offload_device",
+                    options=["none", "cpu"],
+                    default="cpu",
+                    optional=True,
+                    tooltip="Offload the PyTorch VAE (fallback path) to this device between phases. cpu frees VRAM for the DiT."
+                ),
             ],
             outputs=[
                 io.Custom("SEEDVR2_VAE").Output(
@@ -382,6 +388,7 @@ class SeedVR2LoadTensorRTVAEModel(io.ComfyNode):
         encode_tile_size: int = 512,
         encode_tile_overlap: int = 64,
         engine_frames: str = "auto",
+        offload_device: str = "cpu",
     ) -> io.NodeOutput:
         try:
             from comfy_execution.utils import get_executing_context
@@ -392,7 +399,7 @@ class SeedVR2LoadTensorRTVAEModel(io.ComfyNode):
         vae_config: Dict[str, Any] = {
             "model": model,
             "device": device,
-            "offload_device": "none",
+            "offload_device": offload_device,
             "cache_model": False,
             "encode_tiled": encode_tiled,
             "encode_tile_size": encode_tile_size,

@@ -573,7 +573,7 @@ def encode_all_batches(
         # this, the DiT compile in Phase 2 inherits the VAE encode peak as
         # reserved-but-free blocks (counted as in-use under WDDM), shrinking
         # the headroom available for inductor autotune allocations.
-        clear_memory(debug, timer_name="phase1_end")
+        clear_memory(debug, deep=True, timer_name="phase1_end")
     
     debug.end_timer("phase1_encoding", "Phase 1: VAE encoding complete", show_breakdown=True)
     debug.log_memory_state("After phase 1 (VAE encoding)", show_tensors=False)
