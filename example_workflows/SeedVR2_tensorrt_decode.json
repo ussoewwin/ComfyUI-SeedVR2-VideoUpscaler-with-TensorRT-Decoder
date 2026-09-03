@@ -1,8 +1,8 @@
 {
   "id": "e2c8e6ec-9e8a-4a81-a240-7e7d2befc2bf",
   "revision": 0,
-  "last_node_id": 235,
-  "last_link_id": 376,
+  "last_node_id": 236,
+  "last_link_id": 380,
   "nodes": [
     {
       "id": 59,
@@ -151,7 +151,7 @@
         "collapsed": false,
         "pinned": true
       },
-      "order": 11,
+      "order": 12,
       "mode": 0,
       "inputs": [
         {
@@ -244,7 +244,7 @@
       "flags": {
         "pinned": true
       },
-      "order": 13,
+      "order": 14,
       "mode": 0,
       "inputs": [
         {
@@ -317,7 +317,7 @@
       "flags": {
         "pinned": true
       },
-      "order": 15,
+      "order": 16,
       "mode": 0,
       "inputs": [
         {
@@ -378,7 +378,7 @@
       "flags": {
         "pinned": true
       },
-      "order": 16,
+      "order": 17,
       "mode": 0,
       "inputs": [
         {
@@ -436,7 +436,7 @@
         "collapsed": false,
         "pinned": true
       },
-      "order": 10,
+      "order": 11,
       "mode": 0,
       "inputs": [
         {
@@ -503,7 +503,7 @@
         "collapsed": false,
         "pinned": true
       },
-      "order": 9,
+      "order": 10,
       "mode": 0,
       "inputs": [
         {
@@ -779,12 +779,12 @@
       ],
       "size": [
         294.390625,
-        565.75
+        502.3447265625
       ],
       "flags": {
         "pinned": true
       },
-      "order": 17,
+      "order": 18,
       "mode": 0,
       "inputs": [
         {
@@ -852,13 +852,13 @@
           "hidden": false,
           "paused": false,
           "params": {
-            "filename": "120915_SeedVR_00001-audio.mp4",
+            "filename": "125349_SeedVR_00001-audio.mp4",
             "subfolder": "20260903",
             "type": "output",
             "format": "video/nvenc_hevc-mp4",
             "frame_rate": 24,
-            "workflow": "120915_SeedVR_00001.png",
-            "fullpath": "D:\\USERFILES\\A1111\\outputs\\ComfyUI\\20260903\\120915_SeedVR_00001-audio.mp4"
+            "workflow": "125349_SeedVR_00001.png",
+            "fullpath": "D:\\USERFILES\\A1111\\outputs\\ComfyUI\\20260903\\125349_SeedVR_00001-audio.mp4"
           },
           "muted": false
         }
@@ -878,13 +878,13 @@
           "hidden": false,
           "paused": false,
           "params": {
-            "filename": "120915_SeedVR_00001-audio.mp4",
+            "filename": "125349_SeedVR_00001-audio.mp4",
             "subfolder": "20260903",
             "type": "output",
             "format": "video/nvenc_hevc-mp4",
             "frame_rate": 24,
-            "workflow": "120915_SeedVR_00001.png",
-            "fullpath": "D:\\USERFILES\\A1111\\outputs\\ComfyUI\\20260903\\120915_SeedVR_00001-audio.mp4"
+            "workflow": "125349_SeedVR_00001.png",
+            "fullpath": "D:\\USERFILES\\A1111\\outputs\\ComfyUI\\20260903\\125349_SeedVR_00001-audio.mp4"
           },
           "muted": false
         }
@@ -976,8 +976,8 @@
           "type": "SEEDVR2_VAE",
           "links": [
             366,
-            370,
-            376
+            376,
+            377
           ]
         }
       ],
@@ -1079,7 +1079,7 @@
           "name": "SEEDVR2_VAE",
           "type": "SEEDVR2_VAE",
           "links": [
-            365
+            378
           ]
         }
       ],
@@ -1124,7 +1124,7 @@
       "flags": {
         "pinned": true
       },
-      "order": 12,
+      "order": 13,
       "mode": 0,
       "inputs": [
         {
@@ -1147,7 +1147,7 @@
           "name": "vae_decode",
           "shape": 7,
           "type": "SEEDVR2_VAE",
-          "link": 370
+          "link": 379
         },
         {
           "name": "resolution",
@@ -1178,7 +1178,7 @@
         }
       },
       "widgets_values": [
-        573237492,
+        3916025851,
         "randomize",
         1080,
         0,
@@ -1193,7 +1193,7 @@
         false
       ],
       "widgets_values_named": {
-        "seed": 573237492,
+        "seed": 3916025851,
         "control_after_generate": "randomize",
         "resolution": 1080,
         "max_resolution": 0,
@@ -1222,7 +1222,7 @@
       "flags": {
         "pinned": true
       },
-      "order": 14,
+      "order": 15,
       "mode": 4,
       "inputs": [
         {
@@ -1245,7 +1245,7 @@
           "name": "vae_decode",
           "shape": 7,
           "type": "SEEDVR2_VAE",
-          "link": 365
+          "link": 380
         },
         {
           "name": "resolution",
@@ -1276,7 +1276,7 @@
         }
       },
       "widgets_values": [
-        4158749003,
+        1310080090,
         "randomize",
         1080,
         0,
@@ -1291,7 +1291,7 @@
         false
       ],
       "widgets_values_named": {
-        "seed": 4158749003,
+        "seed": 1310080090,
         "control_after_generate": "randomize",
         "resolution": 1080,
         "max_resolution": 0,
@@ -1304,6 +1304,79 @@
         "latent_noise_scale": 0,
         "offload_device": "cpu",
         "enable_debug": false
+      }
+    },
+    {
+      "id": 236,
+      "type": "ImpactSwitch",
+      "pos": [
+        -1300.1727329048294,
+        -368.5700448920022
+      ],
+      "size": [
+        270,
+        162
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input1",
+          "shape": 7,
+          "type": "SEEDVR2_VAE",
+          "link": 377
+        },
+        {
+          "name": "input2",
+          "type": "SEEDVR2_VAE",
+          "link": 378
+        },
+        {
+          "name": "input3",
+          "type": "SEEDVR2_VAE",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "label": "SEEDVR2_VAE",
+          "name": "SEEDVR2_VAE",
+          "type": "SEEDVR2_VAE",
+          "links": [
+            379,
+            380
+          ]
+        },
+        {
+          "name": "selected_label",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "selected_index",
+          "type": "INT",
+          "links": null
+        }
+      ],
+      "properties": {
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {}
+        },
+        "cnr_id": "comfyui-impact-pack",
+        "ver": "8.28.3",
+        "Node name for S&R": "ImpactSwitch"
+      },
+      "widgets_values": [
+        2,
+        false
+      ],
+      "widgets_values_named": {
+        "select": 2,
+        "sel_mode": false
       }
     }
   ],
@@ -1461,14 +1534,6 @@
       "SEEDVR2_DIT"
     ],
     [
-      365,
-      222,
-      0,
-      230,
-      3,
-      "SEEDVR2_VAE"
-    ],
-    [
       366,
       221,
       0,
@@ -1493,19 +1558,43 @@
       "IMAGE"
     ],
     [
-      370,
+      376,
       221,
+      0,
+      229,
+      2,
+      "SEEDVR2_VAE"
+    ],
+    [
+      377,
+      221,
+      0,
+      236,
+      0,
+      "SEEDVR2_VAE"
+    ],
+    [
+      378,
+      222,
+      0,
+      236,
+      1,
+      "SEEDVR2_VAE"
+    ],
+    [
+      379,
+      236,
       0,
       229,
       3,
       "SEEDVR2_VAE"
     ],
     [
-      376,
-      221,
+      380,
+      236,
       0,
-      229,
-      2,
+      230,
+      3,
       "SEEDVR2_VAE"
     ]
   ],
@@ -1556,10 +1645,10 @@
   "config": {},
   "extra": {
     "ds": {
-      "scale": 0.2940834937055492,
+      "scale": 0.3558410273837148,
       "offset": [
-        2832.0227194858467,
-        1811.892865292833
+        2612.6811855002584,
+        1343.7192950046187
       ]
     },
     "ue_links": [],
