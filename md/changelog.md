@@ -7,7 +7,7 @@
 
 # Changelog
 
-Fork release history for [ussoewwin/ComfyUI-SeedVR2_VideoUpscaler](https://github.com/ussoewwin/ComfyUI-SeedVR2_VideoUpscaler).
+Fork release history.
 
 ## v1.5 — 2026-09-03
 

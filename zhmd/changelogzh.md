@@ -7,7 +7,7 @@
 
 # 更新日志
 
-[ussoewwin/ComfyUI-SeedVR2_VideoUpscaler](https://github.com/ussoewwin/ComfyUI-SeedVR2_VideoUpscaler) 的 Fork 发行历史。
+Fork 发行历史。
 
 ## v1.5 — 2026-09-03
 
