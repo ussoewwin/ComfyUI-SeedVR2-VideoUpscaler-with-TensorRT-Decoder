@@ -1,7 +1,7 @@
 <table align="center">
   <tr>
     <td align="center" bgcolor="#3478ca" width="88" height="36"><font color="#ffffff"><b>EN</b></font></td>
-    <td align="center" bgcolor="#e5e7eb" width="88" height="36"><a href="https://github.com/ussoewwin/ComfyUI-SeedVR2_VideoUpscaler/blob/main/zhmd/v1.3.md"><font color="#4b5563"><b>中文</b></font></a></td>
+    <td align="center" bgcolor="#e5e7eb" width="88" height="36"><a href="https://github.com/ussoewwin/ComfyUI-SeedVR2-VideoUpscaler-with-TensorRT-Decoder/blob/main/zhmd/v1.3.md"><font color="#4b5563"><b>中文</b></font></a></td>
   </tr>
 </table>
 
@@ -17,8 +17,8 @@ of a run, and makes the VAE temporal slices more uniform to reduce compile
 shape variants.
 
 **Guides (full write-up):**  
-- https://github.com/ussoewwin/ComfyUI-SeedVR2_VideoUpscaler/blob/main/md/SEEDVR2_SPEED_VRAM_HEADROOM.md  
-- https://github.com/ussoewwin/ComfyUI-SeedVR2_VideoUpscaler/blob/main/md/SEEDVR2_WINDOWS_PARALLEL_COMPILE_FIX.md
+- https://github.com/ussoewwin/ComfyUI-SeedVR2-VideoUpscaler-with-TensorRT-Decoder/blob/main/md/SEEDVR2_SPEED_VRAM_HEADROOM.md  
+- https://github.com/ussoewwin/ComfyUI-SeedVR2-VideoUpscaler-with-TensorRT-Decoder/blob/main/md/SEEDVR2_WINDOWS_PARALLEL_COMPILE_FIX.md
 
 ---
 

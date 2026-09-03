@@ -1,6 +1,6 @@
 <table align="center">
   <tr>
-    <td align="center" bgcolor="#e5e7eb" width="88" height="36"><a href="https://github.com/ussoewwin/ComfyUI-SeedVR2_VideoUpscaler/blob/main/md/changelog.md"><font color="#4b5563"><b>EN</b></font></a></td>
+    <td align="center" bgcolor="#e5e7eb" width="88" height="36"><a href="https://github.com/ussoewwin/ComfyUI-SeedVR2-VideoUpscaler-with-TensorRT-Decoder/blob/main/md/changelog.md"><font color="#4b5563"><b>EN</b></font></a></td>
     <td align="center" bgcolor="#3478ca" width="88" height="36"><font color="#ffffff"><b>中文</b></font></td>
   </tr>
 </table>

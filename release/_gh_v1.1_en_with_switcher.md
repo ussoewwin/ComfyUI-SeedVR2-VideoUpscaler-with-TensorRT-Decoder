@@ -1,7 +1,7 @@
 <table align="center">
   <tr>
     <td align="center" bgcolor="#3478ca" width="88" height="36"><font color="#ffffff"><b>EN</b></font></td>
-    <td align="center" bgcolor="#e5e7eb" width="88" height="36"><a href="https://github.com/ussoewwin/ComfyUI-SeedVR2_VideoUpscaler/blob/main/zhmd/v1.1.md"><font color="#4b5563"><b>中文</b></font></a></td>
+    <td align="center" bgcolor="#e5e7eb" width="88" height="36"><a href="https://github.com/ussoewwin/ComfyUI-SeedVR2-VideoUpscaler-with-TensorRT-Decoder/blob/main/zhmd/v1.1.md"><font color="#4b5563"><b>中文</b></font></a></td>
   </tr>
 </table>
 
@@ -11,7 +11,7 @@
 
 This release adds **native INT8 loading** for SeedVR2 DiT weights (`int8_tensorwise` + `comfy_quant` / `weight_scale`) via construction-time `comfy.ops.mixed_precision_ops`, so INT8 packs stay quantized through `load_state_dict` instead of expanding to full FP16.
 
-**Guide (full write-up):** https://github.com/ussoewwin/ComfyUI-SeedVR2_VideoUpscaler/blob/main/md/SEEDVR2_INT8_NATIVE_OPS_GUIDE.md
+**Guide (full write-up):** https://github.com/ussoewwin/ComfyUI-SeedVR2-VideoUpscaler-with-TensorRT-Decoder/blob/main/md/SEEDVR2_INT8_NATIVE_OPS_GUIDE.md
 
 ---
 

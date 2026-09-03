@@ -1,4 +1,4 @@
-# ComfyUI-SeedVR2_VideoUpscaler
+# ComfyUI-SeedVR2-VideoUpscaler-with-TensorRT-Decoder
 
 <table align="center">
   <tr>
@@ -21,15 +21,15 @@
 
 - 工作流 JSON：[`example_workflows/SeedVR2_tensorrt_decode.json`](../example_workflows/SeedVR2_tensorrt_decode.json)
 
-![Usage Example - Full Workflow](https://raw.githubusercontent.com/ussoewwin/ComfyUI-SeedVR2_VideoUpscaler/main/docs/usage_01.png)
+![Usage Example - Full Workflow](https://raw.githubusercontent.com/ussoewwin/ComfyUI-SeedVR2-VideoUpscaler-with-TensorRT-Decoder/main/docs/usage_01.png)
 
 ### TensorRT VAE 解码器节点
 
-![Usage Example - TensorRT VAE Decoder](https://raw.githubusercontent.com/ussoewwin/ComfyUI-SeedVR2_VideoUpscaler/main/docs/usage_02.png)
+![Usage Example - TensorRT VAE Decoder](https://raw.githubusercontent.com/ussoewwin/ComfyUI-SeedVR2-VideoUpscaler-with-TensorRT-Decoder/main/docs/usage_02.png)
 
 ### TensorRT VAE 引擎构建节点
 
-![TensorRT VAE Engine Builder Node](https://raw.githubusercontent.com/ussoewwin/ComfyUI-SeedVR2_VideoUpscaler/main/docs/build.png)
+![TensorRT VAE Engine Builder Node](https://raw.githubusercontent.com/ussoewwin/ComfyUI-SeedVR2-VideoUpscaler-with-TensorRT-Decoder/main/docs/build.png)
 
 **`SeedVR2 Build TensorRT VAE Engines`** 节点允许用户在 ComfyUI 中直接按需显式构建专用的 TensorRT RTX VAE 引擎（`.rtxplan`）。该节点在后台调用 GPU 追踪（`tools/cloud_export_gpu.py`）与 TensorRT 编译（`tools/cloud_build_engine.py`）。
 

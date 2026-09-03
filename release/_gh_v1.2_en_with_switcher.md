@@ -1,7 +1,7 @@
 <table align="center">
   <tr>
     <td align="center" bgcolor="#3478ca" width="88" height="36"><font color="#ffffff"><b>EN</b></font></td>
-    <td align="center" bgcolor="#e5e7eb" width="88" height="36"><a href="https://github.com/ussoewwin/ComfyUI-SeedVR2_VideoUpscaler/blob/main/zhmd/v1.2.md"><font color="#4b5563"><b>中文</b></font></a></td>
+    <td align="center" bgcolor="#e5e7eb" width="88" height="36"><a href="https://github.com/ussoewwin/ComfyUI-SeedVR2-VideoUpscaler-with-TensorRT-Decoder/blob/main/zhmd/v1.2.md"><font color="#4b5563"><b>中文</b></font></a></td>
   </tr>
 </table>
 
@@ -11,7 +11,7 @@
 
 This release adds **native NVFP4 loading** for SeedVR2 DiT weights (`format == nvfp4` + `weight_scale` / `weight_scale_2`) via construction-time `comfy.ops.mixed_precision_ops`, and **Windows / inductor fixes** so FP16 VAE `torch.compile` no longer fails with cp932 decode or `aten.bmm` fallback+decomp asserts.
 
-**Guide (full write-up):** https://github.com/ussoewwin/ComfyUI-SeedVR2_VideoUpscaler/blob/main/md/SEEDVR2_NVFP4_AND_TORCH_COMPILE_GUIDE.md
+**Guide (full write-up):** https://github.com/ussoewwin/ComfyUI-SeedVR2-VideoUpscaler-with-TensorRT-Decoder/blob/main/md/SEEDVR2_NVFP4_AND_TORCH_COMPILE_GUIDE.md
 
 ---
 

@@ -1,7 +1,7 @@
 <table align="center">
   <tr>
     <td align="center" bgcolor="#3478ca" width="88" height="36"><font color="#ffffff"><b>EN</b></font></td>
-    <td align="center" bgcolor="#e5e7eb" width="88" height="36"><a href="https://github.com/ussoewwin/ComfyUI-SeedVR2_VideoUpscaler/blob/main/zhmd/v1.4.md"><font color="#4b5563"><b>中文</b></font></a></td>
+    <td align="center" bgcolor="#e5e7eb" width="88" height="36"><a href="https://github.com/ussoewwin/ComfyUI-SeedVR2-VideoUpscaler-with-TensorRT-Decoder/blob/main/zhmd/v1.4.md"><font color="#4b5563"><b>中文</b></font></a></td>
   </tr>
 </table>
 
@@ -12,11 +12,11 @@
 This release registers **3B** HSWQ INT8 ConvRot and NVFP4 DiT packs in `MODEL_REGISTRY` the same way as 7B. Quantized VRAM remains content-detected (`*.comfy_quant` + construction-time `comfy.ops.mixed_precision_ops`). Filenames already contain `3b`, so config folder selection stays on the historical `"7b" in dit_model` rule (`configs_3b`).
 
 **Guide (full write-up):**  
-https://github.com/ussoewwin/ComfyUI-SeedVR2_VideoUpscaler/blob/main/md/SEEDVR2_3B_INT8_NVFP4_REGISTRY_GUIDE.md
+https://github.com/ussoewwin/ComfyUI-SeedVR2-VideoUpscaler-with-TensorRT-Decoder/blob/main/md/SEEDVR2_3B_INT8_NVFP4_REGISTRY_GUIDE.md
 
 **Related prior guides:**  
-- https://github.com/ussoewwin/ComfyUI-SeedVR2_VideoUpscaler/blob/main/md/SEEDVR2_NVFP4_AND_TORCH_COMPILE_GUIDE.md  
-- https://github.com/ussoewwin/ComfyUI-SeedVR2_VideoUpscaler/blob/main/md/SEEDVR2_INT8_NATIVE_OPS_GUIDE.md
+- https://github.com/ussoewwin/ComfyUI-SeedVR2-VideoUpscaler-with-TensorRT-Decoder/blob/main/md/SEEDVR2_NVFP4_AND_TORCH_COMPILE_GUIDE.md  
+- https://github.com/ussoewwin/ComfyUI-SeedVR2-VideoUpscaler-with-TensorRT-Decoder/blob/main/md/SEEDVR2_INT8_NATIVE_OPS_GUIDE.md
 
 ---
 

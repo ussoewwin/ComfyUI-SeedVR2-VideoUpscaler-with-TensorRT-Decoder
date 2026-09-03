@@ -10,8 +10,8 @@ of a run, and makes the VAE temporal slices more uniform to reduce compile
 shape variants.
 
 **Guides (full write-up):**  
-- https://github.com/ussoewwin/ComfyUI-SeedVR2_VideoUpscaler/blob/main/md/SEEDVR2_SPEED_VRAM_HEADROOM.md  
-- https://github.com/ussoewwin/ComfyUI-SeedVR2_VideoUpscaler/blob/main/md/SEEDVR2_WINDOWS_PARALLEL_COMPILE_FIX.md
+- https://github.com/ussoewwin/ComfyUI-SeedVR2-VideoUpscaler-with-TensorRT-Decoder/blob/main/md/SEEDVR2_SPEED_VRAM_HEADROOM.md  
+- https://github.com/ussoewwin/ComfyUI-SeedVR2-VideoUpscaler-with-TensorRT-Decoder/blob/main/md/SEEDVR2_WINDOWS_PARALLEL_COMPILE_FIX.md
 
 ---
 
