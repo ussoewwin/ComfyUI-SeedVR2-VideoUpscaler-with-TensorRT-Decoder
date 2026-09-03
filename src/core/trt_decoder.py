@@ -217,8 +217,13 @@ def resolve_engine_frames(preferred: str = "auto") -> int | None:
 
 
 def release() -> None:
-    """Clear cached execution contexts and streams to free GPU VRAM."""
+    """Clear cached decoder execution contexts and streams to free GPU VRAM."""
     global _DECODER_ENGINES
     _DECODER_ENGINES.clear()
+    import gc as _gc
+    _gc.collect()
     if torch.cuda.is_available():
+        torch.cuda.synchronize()
+        torch.cuda.empty_cache()
+        _gc.collect()
         torch.cuda.empty_cache()

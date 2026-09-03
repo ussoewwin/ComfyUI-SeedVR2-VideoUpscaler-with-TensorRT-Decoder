@@ -227,5 +227,10 @@ def release() -> None:
     """Clear cached execution contexts and streams to free GPU VRAM."""
     global _ENGINES
     _ENGINES.clear()
+    import gc as _gc
+    _gc.collect()
     if torch.cuda.is_available():
+        torch.cuda.synchronize()
+        torch.cuda.empty_cache()
+        _gc.collect()
         torch.cuda.empty_cache()

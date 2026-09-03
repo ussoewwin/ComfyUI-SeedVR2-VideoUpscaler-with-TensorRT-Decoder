@@ -662,6 +662,24 @@ def upscale_all_batches(
         # Phase 1 locals are now released (function returned); return the allocator's
         # reserved-but-free segments to the driver. Without this, a long chunked
         # TRT encode (e.g. 84 chunks) fragments reserved VRAM and the DiT OOMs.
+        # f21-512 hardening: re-release any TRT engine state and drop the VAE from
+        # the GPU before the DiT loads (TRT-encode runs do not need the VAE in Phase 2).
+        try:
+            from .trt_encoder import release as _rel_enc
+            _rel_enc()
+        except Exception:
+            pass
+        try:
+            from .trt_decoder import release as _rel_dec
+            _rel_dec()
+        except Exception:
+            pass
+        try:
+            if runner.vae is not None and next(runner.vae.parameters()).device.type == 'cuda':
+                runner.vae.cpu()
+                debug.log("VAE moved to CPU before DiT load", category="memory", force=True)
+        except Exception:
+            pass
         clear_memory(debug, deep=True, timer_name="phase2_pre_dit")
         if runner.dit and next(runner.dit.parameters()).device.type == 'meta':
             materialize_model(runner, "dit", ctx['dit_device'], runner.config, debug)
