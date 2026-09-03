@@ -27,6 +27,37 @@ This repository is a fork of the official repository ([https://github.com/numz/C
 
 ![Usage Example - TensorRT VAE Decoder](https://raw.githubusercontent.com/ussoewwin/ComfyUI-SeedVR2_VideoUpscaler/main/docs/usage_02.png)
 
+### TensorRT VAE Engine Builder Node
+
+![TensorRT VAE Engine Builder Node](https://raw.githubusercontent.com/ussoewwin/ComfyUI-SeedVR2_VideoUpscaler/main/docs/build.png)
+
+The **`SeedVR2 Build TensorRT VAE Engines`** node builds dedicated TensorRT RTX VAE engines (`.rtxplan`) on demand directly within ComfyUI by running GPU tracing (`tools/cloud_export_gpu.py`) and TensorRT compilation (`tools/cloud_build_engine.py`).
+
+Built engines land in `tensorrt_backend/artifacts/` and automatically populate the `engine_frames` dropdown in the TensorRT VAE Decoder loader upon restarting ComfyUI.
+
+#### Node Parameters & Settings
+
+- **`model`**: Source PyTorch VAE model checkpoint (e.g. `ema_vae_fp16.safetensors`).
+- **`frames`**: Target frame count for the engine. Automatically normalized to the required **4n+1** sequence format (e.g. `5`, `21`, `29`, `61`, `89`, `101`, `185`, `205`).
+- **`tile_size`**: Spatial tile size (`256` or `512`):
+  - **`256`**: Recommended for long frame sequences (60f–185f+) on 16GB–24GB VRAM GPUs.
+  - **`512`**: Highest quality with larger spatial patches; requires higher build VRAM (recommended for shorter frame sizes like 21f–29f on 16GB GPUs).
+- **`kind`**: Select which engine to build:
+  - **`both`**: Builds both encoder and decoder engines.
+  - **`decoder`**: Builds the VAE decoder engine only (recommended for Phase 3 acceleration).
+  - **`encoder`**: Builds the VAE encoder engine only.
+- **`workspace_gb`**: Maximum TensorRT workspace memory limit in GB during compilation (default: `8.0`–`16.0` GB).
+- **`min_ws`**: When enabled (`True`), performs a binary search to discover the minimal buildable workspace, reducing runtime VRAM allocation (build time is slightly longer).
+- **`force_rebuild`**: When enabled (`True`), rebuilds and overwrites existing engine files.
+- **Output (`STRING`)**: Outputs build status, generated engine filename, file size, and total compilation time. Connect to a `Show Text` node to inspect results in real time.
+
+#### How to Use & Build Engines
+
+1. Place the **`SeedVR2 Build TensorRT VAE Engines`** node in your workflow.
+2. Select your desired target frame count (`frames`), spatial `tile_size` (`256` or `512`), and `kind` (e.g. `decoder`).
+3. Click **Queue Prompt** to run the build. The node executes ONNX export and TensorRT compilation in the background.
+4. Once completed, restart ComfyUI. The newly built engine frame size will appear in the `engine_frames` list of the **`SeedVR2 Load TensorRT VAE Decoder`** node.
+
 ## Documentation
 
 For details, refer to the official repository:

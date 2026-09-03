@@ -27,6 +27,37 @@
 
 ![Usage Example - TensorRT VAE Decoder](https://raw.githubusercontent.com/ussoewwin/ComfyUI-SeedVR2_VideoUpscaler/main/docs/usage_02.png)
 
+### TensorRT VAE 引擎构建节点
+
+![TensorRT VAE Engine Builder Node](https://raw.githubusercontent.com/ussoewwin/ComfyUI-SeedVR2_VideoUpscaler/main/docs/build.png)
+
+**`SeedVR2 Build TensorRT VAE Engines`** 节点允许用户在 ComfyUI 中直接按需显式构建专用的 TensorRT RTX VAE 引擎（`.rtxplan`）。该节点在后台调用 GPU 追踪（`tools/cloud_export_gpu.py`）与 TensorRT 编译（`tools/cloud_build_engine.py`）。
+
+构建完成的引擎会自动保存至 `tensorrt_backend/artifacts/` 目录中。重启 ComfyUI 后，TensorRT VAE 解码器加载节点的 `engine_frames` 下拉菜单中将自动出现新构建的帧长规格。
+
+#### 节点参数与设置详解
+
+- **`model`**：原始 PyTorch VAE 模型权重（例如 `ema_vae_fp16.safetensors`）。
+- **`frames`**：引擎目标帧长。自动规范化为所需的 **4n+1** 格式（例如 `5`、`21`、`29`、`61`、`89`、`101`、`185`、`205` 等）。
+- **`tile_size`**：空间分块尺寸（`256` 或 `512`）：
+  - **`256`**：适合在 16GB–24GB 显存显卡上构建长帧序列（60f–185f+）引擎。
+  - **`512`**：空间分块更大、细节还原更优，但编译时显存占用较高（建议在 16GB 显卡上用于 21f–29f 规格）。
+- **`kind`**：选择构建的引擎类型：
+  - **`both`**：同时构建编码器与解码器引擎。
+  - **`decoder`**：仅构建 VAE 解码器引擎（推荐用于 Phase 3 解码加速）。
+  - **`encoder`**：仅构建 VAE 编码器引擎。
+- **`workspace_gb`**：TensorRT 编译时的最大工作区显存上限（单位：GB，默认 `8.0`–`16.0` GB）。
+- **`min_ws`**：启用（`True`）后，通过二分搜索查找可成功构建的最小工作区尺寸，进一步降低运行时显存占用（编译时间略有增加）。
+- **`force_rebuild`**：启用（`True`）后，即使引擎文件已存在也会强制重新构建并覆盖。
+- **输出（`STRING`）**：输出构建状态、生成引擎文件名、文件大小及总耗时。可连接 `Show Text` 节点实时查看。
+
+#### 使用与构建步骤
+
+1. 在工作流中添加 **`SeedVR2 Build TensorRT VAE Engines`** 节点。
+2. 配置所需的帧长（`frames`）、空间尺寸 `tile_size`（256 或 512）以及 `kind`（如 `decoder`）。
+3. 点击 **Queue Prompt** 启动构建，系统将在后台自动完成 ONNX 导出与 TensorRT 引擎构建。
+4. 构建完成后重启 ComfyUI，**`SeedVR2 Load TensorRT VAE Decoder`** 节点的 `engine_frames` 下拉列表中将显示新构建的帧数，即可开启极速解码。
+
 ## 文档
 
 详细说明请参阅官方仓库：
