@@ -15,9 +15,15 @@
 
 [![SeedVR2 v2.5 Deep Dive Tutorial](https://img.youtube.com/vi/MBtWYXq_r60/maxresdefault.jpg)](https://youtu.be/MBtWYXq_r60)
 
-![Usage Example](../docs/usage_01.png)
+## 工作流与节点示例
 
-![Usage Example](../docs/usage_02.png)
+### 完整工作流概览（TensorRT VAE 与量化模型）
+
+![Usage Example - Full Workflow](../docs/usage_01.png)
+
+### TensorRT VAE 解码器节点
+
+![Usage Example - TensorRT VAE Decoder](../docs/usage_02.png)
 
 ## 文档
 
@@ -27,6 +33,7 @@ https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler
 
 本 Fork 技术指南（中文）：
 
+- [3B INT8 / NVFP4 模型支持](SEEDVR2_3B_INT8_NVFP4_REGISTRY_GUIDE.md)
 - [INT8 原生推理](SEEDVR2_INT8_NATIVE_OPS_GUIDE.md)
 - [NVFP4 与 torch.compile](SEEDVR2_NVFP4_AND_TORCH_COMPILE_GUIDE.md)
 - [速度 / 显存余量](SEEDVR2_SPEED_VRAM_HEADROOM.md)

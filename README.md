@@ -15,15 +15,30 @@ This repository is a fork of the official repository ([https://github.com/numz/C
 
 [![SeedVR2 v2.5 Deep Dive Tutorial](https://img.youtube.com/vi/MBtWYXq_r60/maxresdefault.jpg)](https://youtu.be/MBtWYXq_r60)
 
-![Usage Example](docs/usage_01.png)
+## Workflow & Node Examples
 
-![Usage Example](docs/usage_02.png)
+### Complete Workflow Overview (TensorRT VAE & Quantized Models)
+
+![Usage Example - Full Workflow](docs/usage_01.png)
+
+### TensorRT VAE Decoder Node
+
+![Usage Example - TensorRT VAE Decoder](docs/usage_02.png)
 
 ## Documentation
 
 For details, refer to the official repository:
 
 https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler
+
+### Technical Guides (This Fork)
+
+- [3B INT8 / NVFP4 Model Registry Guide](md/SEEDVR2_3B_INT8_NVFP4_REGISTRY_GUIDE.md)
+- [INT8 Native Ops Inference Guide](md/SEEDVR2_INT8_NATIVE_OPS_GUIDE.md)
+- [NVFP4 & torch.compile Guide](md/SEEDVR2_NVFP4_AND_TORCH_COMPILE_GUIDE.md)
+- [Speed & VRAM Headroom Analysis](md/SEEDVR2_SPEED_VRAM_HEADROOM.md)
+- [Windows Parallel Compile Fix](md/SEEDVR2_WINDOWS_PARALLEL_COMPILE_FIX.md)
+- [Cloud Environment Dependency Guide](md/vastai_dependency_guide.md)
 
 ## Changelog
 
