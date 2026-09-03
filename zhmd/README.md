@@ -19,6 +19,8 @@
 
 ### 完整工作流概览（TensorRT VAE 与量化模型）
 
+- 工作流 JSON：[`example_workflows/SeedVR2_tensorrt_decode.json`](../example_workflows/SeedVR2_tensorrt_decode.json)
+
 ![Usage Example - Full Workflow](https://raw.githubusercontent.com/ussoewwin/ComfyUI-SeedVR2_VideoUpscaler/main/docs/usage_01.png)
 
 ### TensorRT VAE 解码器节点

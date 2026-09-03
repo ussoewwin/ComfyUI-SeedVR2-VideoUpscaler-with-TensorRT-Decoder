@@ -1,0 +1,1576 @@
+{
+  "id": "e2c8e6ec-9e8a-4a81-a240-7e7d2befc2bf",
+  "revision": 0,
+  "last_node_id": 235,
+  "last_link_id": 376,
+  "nodes": [
+    {
+      "id": 59,
+      "type": "ResolutionPickerI2V",
+      "pos": [
+        -1799.3704756662416,
+        -1166.4173822122125
+      ],
+      "size": [
+        225,
+        218.65625
+      ],
+      "flags": {
+        "collapsed": false,
+        "pinned": true
+      },
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 306
+        }
+      ],
+      "outputs": [
+        {
+          "name": "width",
+          "type": "INT",
+          "links": [
+            141
+          ]
+        },
+        {
+          "name": "height",
+          "type": "INT",
+          "links": [
+            142
+          ]
+        },
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "links": []
+        }
+      ],
+      "properties": {
+        "aux_id": "Daxamur/DaxNodes",
+        "ver": "49e2ed993a86ff3f7fdfc8e1555e13d9c25adea6",
+        "Node name for S&R": "ResolutionPickerI2V",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.4"
+        }
+      },
+      "widgets_values": [
+        "Native (Original Resolution)",
+        0,
+        0
+      ],
+      "widgets_values_named": {
+        "resolution_mode": "Native (Original Resolution)",
+        "override_width": 0,
+        "override_height": 0
+      }
+    },
+    {
+      "id": 182,
+      "type": "SeedVR2LoadDiTModel",
+      "pos": [
+        -1297.3326963501847,
+        -770.6343501305454
+      ],
+      "size": [
+        308.84375,
+        298.65625
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "torch_compile_args",
+          "shape": 7,
+          "type": "TORCH_COMPILE_ARGS",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "SEEDVR2_DIT",
+          "type": "SEEDVR2_DIT",
+          "links": [
+            357,
+            364
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "ussoewwin/ComfyUI-SeedVR2_VideoUpscaler",
+        "ver": "2.5.10",
+        "Node name for S&R": "SeedVR2LoadDiTModel",
+        "cnr_id": "seedvr2_videoupscaler",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.5.1"
+        }
+      },
+      "widgets_values": [
+        "seedvr2_7b_int8_convrot.safetensors",
+        "cuda:0",
+        36,
+        false,
+        "cpu",
+        false,
+        "sageattn_2"
+      ],
+      "widgets_values_named": {
+        "model": "seedvr2_7b_int8_convrot.safetensors",
+        "device": "cuda:0",
+        "blocks_to_swap": 36,
+        "swap_io_components": false,
+        "offload_device": "cpu",
+        "cache_model": false,
+        "attention_mode": "sageattn_2"
+      },
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 111,
+      "type": "PreviewAny",
+      "pos": [
+        -597.3665534311365,
+        -1168.2548351773712
+      ],
+      "size": [
+        225,
+        152
+      ],
+      "flags": {
+        "collapsed": false,
+        "pinned": true
+      },
+      "order": 11,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "source",
+          "type": "*",
+          "link": 198
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfy-core",
+        "ver": "0.3.57",
+        "Node name for S&R": "PreviewAny",
+        "ue_properties": {
+          "version": "7.1",
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": [],
+      "widgets_values_named": {}
+    },
+    {
+      "id": 92,
+      "type": "MinNode",
+      "pos": [
+        -1496.2376147693878,
+        -1165.7782422581447
+      ],
+      "size": [
+        225,
+        96
+      ],
+      "flags": {
+        "collapsed": false,
+        "pinned": true
+      },
+      "order": 8,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input1",
+          "type": "*",
+          "link": 141
+        },
+        {
+          "name": "input2",
+          "type": "*",
+          "link": 142
+        }
+      ],
+      "outputs": [
+        {
+          "name": "*",
+          "type": "*",
+          "links": [
+            194,
+            289
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-logicutils",
+        "ver": "1.7.2",
+        "Node name for S&R": "MinNode",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.4"
+        }
+      }
+    },
+    {
+      "id": 194,
+      "type": "ImpactSwitch",
+      "pos": [
+        -498.46294496170174,
+        -769.6782306594739
+      ],
+      "size": [
+        270,
+        188
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 13,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "input1",
+          "shape": 7,
+          "type": "*",
+          "link": 287
+        },
+        {
+          "name": "input2",
+          "type": "INT",
+          "link": 288
+        },
+        {
+          "name": "input3",
+          "type": "INT",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "label": "INT",
+          "name": "selected_value",
+          "type": "*",
+          "links": [
+            367
+          ]
+        },
+        {
+          "name": "selected_label",
+          "type": "STRING",
+          "links": null
+        },
+        {
+          "name": "selected_index",
+          "type": "INT",
+          "links": null
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-impact-pack",
+        "ver": "8.28.0",
+        "Node name for S&R": "ImpactSwitch",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.5.1"
+        }
+      },
+      "widgets_values": [
+        2,
+        false
+      ],
+      "widgets_values_named": {
+        "select": 2,
+        "sel_mode": false
+      }
+    },
+    {
+      "id": 196,
+      "type": "DisTorchPurgeVRAMV2",
+      "pos": [
+        401.7895694954141,
+        -969.4932580152547
+      ],
+      "size": [
+        278.84375,
+        268
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 15,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "anything",
+          "type": "*",
+          "link": 369
+        }
+      ],
+      "outputs": [
+        {
+          "name": "any",
+          "type": "*",
+          "links": [
+            293
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-distorchmemorymanager",
+        "ver": "1.10.1",
+        "Node name for S&R": "DisTorchPurgeVRAMV2",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.5.1"
+        }
+      },
+      "widgets_values": [
+        true,
+        false,
+        true,
+        false,
+        false,
+        false,
+        false
+      ],
+      "widgets_values_named": {
+        "purge_cache": true,
+        "purge_models": false,
+        "purge_seedvr2_models": true,
+        "purge_qwen3vl_models": false,
+        "purge_nunchaku_models": false,
+        "HSWQ": false,
+        "Ollama": false
+      }
+    },
+    {
+      "id": 197,
+      "type": "MemoryManager",
+      "pos": [
+        403.5753581964581,
+        -567.2155935668698
+      ],
+      "size": [
+        307.90625,
+        212
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 16,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "anything",
+          "type": "*",
+          "link": 293
+        }
+      ],
+      "outputs": [
+        {
+          "name": "any",
+          "type": "*",
+          "links": [
+            346
+          ]
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-distorchmemorymanager",
+        "ver": "1.10.1",
+        "Node name for S&R": "MemoryManager",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.5.1"
+        }
+      },
+      "widgets_values": [
+        true,
+        true,
+        true,
+        true,
+        true
+      ],
+      "widgets_values_named": {
+        "clean_gpu": true,
+        "clean_cpu": true,
+        "force_gc": true,
+        "reset_virtual_memory": true,
+        "restore_original_functions": true
+      }
+    },
+    {
+      "id": 193,
+      "type": "MathExpression|pysssss",
+      "pos": [
+        -898.6424230714058,
+        -1168.97813202594
+      ],
+      "size": [
+        225,
+        188
+      ],
+      "flags": {
+        "collapsed": false,
+        "pinned": true
+      },
+      "order": 10,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "a",
+          "shape": 7,
+          "type": "INT,FLOAT,IMAGE,LATENT",
+          "link": 289
+        },
+        {
+          "name": "b",
+          "shape": 7,
+          "type": "INT,FLOAT,IMAGE,LATENT",
+          "link": null
+        },
+        {
+          "name": "c",
+          "shape": 7,
+          "type": "INT,FLOAT,IMAGE,LATENT",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "INT",
+          "type": "INT",
+          "links": [
+            288
+          ]
+        },
+        {
+          "name": "FLOAT",
+          "type": "FLOAT",
+          "links": []
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-custom-scripts",
+        "ver": "f2838ed5e59de4d73cde5c98354b87a8d3200190",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.4"
+        }
+      },
+      "widgets_values": [
+        "a*2.5\n"
+      ],
+      "widgets_values_named": {
+        "expression": "a*2.5\n"
+      }
+    },
+    {
+      "id": 122,
+      "type": "MathExpression|pysssss",
+      "pos": [
+        -1197.6113872029357,
+        -1167.914174577544
+      ],
+      "size": [
+        225,
+        188
+      ],
+      "flags": {
+        "collapsed": false,
+        "pinned": true
+      },
+      "order": 9,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "a",
+          "shape": 7,
+          "type": "INT,FLOAT,IMAGE,LATENT",
+          "link": 194
+        },
+        {
+          "name": "b",
+          "shape": 7,
+          "type": "INT,FLOAT,IMAGE,LATENT",
+          "link": null
+        },
+        {
+          "name": "c",
+          "shape": 7,
+          "type": "INT,FLOAT,IMAGE,LATENT",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "INT",
+          "type": "INT",
+          "links": [
+            198,
+            287,
+            360
+          ]
+        },
+        {
+          "name": "FLOAT",
+          "type": "FLOAT",
+          "links": []
+        }
+      ],
+      "properties": {
+        "cnr_id": "comfyui-custom-scripts",
+        "ver": "f2838ed5e59de4d73cde5c98354b87a8d3200190",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.4"
+        }
+      },
+      "widgets_values": [
+        "a*2"
+      ],
+      "widgets_values_named": {
+        "expression": "a*2"
+      }
+    },
+    {
+      "id": 202,
+      "type": "VHS_LoadVideo",
+      "pos": [
+        -2597.381595779563,
+        -1169.6091928232845
+      ],
+      "size": [
+        261,
+        511.40625
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "meta_batch",
+          "shape": 7,
+          "type": "VHS_BatchManager",
+          "link": null
+        },
+        {
+          "name": "vae",
+          "shape": 7,
+          "type": "VAE",
+          "link": null
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            306,
+            356
+          ]
+        },
+        {
+          "name": "frame_count",
+          "type": "INT",
+          "links": []
+        },
+        {
+          "name": "audio",
+          "type": "AUDIO",
+          "links": [
+            302
+          ]
+        },
+        {
+          "name": "video_info",
+          "type": "VHS_VIDEOINFO",
+          "links": [
+            301
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "ussoewwin/ComfyUI-VideoHelperSuite",
+        "ver": "1.7.9",
+        "Node name for S&R": "VHS_LoadVideo",
+        "cnr_id": "comfyui-videohelpersuite",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.5.2"
+        }
+      },
+      "widgets_values": {
+        "video": "mp4.mp4",
+        "force_rate": 0,
+        "custom_width": 0,
+        "custom_height": 0,
+        "frame_load_cap": 0,
+        "skip_first_frames": 0,
+        "select_every_nth": 1,
+        "format": "None",
+        "videopreview": {
+          "hidden": false,
+          "paused": false,
+          "params": {
+            "filename": "mp4.mp4",
+            "type": "input",
+            "format": "video/mp4",
+            "force_rate": 0,
+            "custom_width": 0,
+            "custom_height": 0,
+            "frame_load_cap": 0,
+            "skip_first_frames": 0,
+            "select_every_nth": 1
+          }
+        }
+      },
+      "widgets_values_named": {
+        "video": "mp4.mp4",
+        "force_rate": 0,
+        "custom_width": 0,
+        "custom_height": 0,
+        "frame_load_cap": 0,
+        "skip_first_frames": 0,
+        "select_every_nth": 1,
+        "format": "None",
+        "choose video to upload": null,
+        "videopreview": {
+          "hidden": false,
+          "paused": false,
+          "params": {
+            "filename": "mp4.mp4",
+            "type": "input",
+            "format": "video/mp4",
+            "force_rate": 0,
+            "custom_width": 0,
+            "custom_height": 0,
+            "frame_load_cap": 0,
+            "skip_first_frames": 0,
+            "select_every_nth": 1
+          }
+        }
+      }
+    },
+    {
+      "id": 203,
+      "type": "VHS_VideoInfo",
+      "pos": [
+        -2196.5005943200476,
+        -1168.7077923684833
+      ],
+      "size": [
+        245.84375,
+        288
+      ],
+      "flags": {
+        "collapsed": false,
+        "pinned": true
+      },
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "video_info",
+          "type": "VHS_VIDEOINFO",
+          "link": 301
+        }
+      ],
+      "outputs": [
+        {
+          "name": "source_fps🟨",
+          "type": "FLOAT",
+          "links": [
+            303
+          ]
+        },
+        {
+          "name": "source_frame_count🟨",
+          "type": "INT",
+          "links": []
+        },
+        {
+          "name": "source_duration🟨",
+          "type": "FLOAT",
+          "links": null
+        },
+        {
+          "name": "source_width🟨",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "source_height🟨",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "loaded_fps🟦",
+          "type": "FLOAT",
+          "links": null
+        },
+        {
+          "name": "loaded_frame_count🟦",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "loaded_duration🟦",
+          "type": "FLOAT",
+          "links": null
+        },
+        {
+          "name": "loaded_width🟦",
+          "type": "INT",
+          "links": null
+        },
+        {
+          "name": "loaded_height🟦",
+          "type": "INT",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "ussoewwin/ComfyUI-VideoHelperSuite",
+        "ver": "1.7.9",
+        "Node name for S&R": "VHS_VideoInfo",
+        "cnr_id": "comfyui-videohelpersuite",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.5.2"
+        }
+      },
+      "widgets_values": {}
+    },
+    {
+      "id": 71,
+      "type": "VHS_VideoCombine",
+      "pos": [
+        800.5567598433547,
+        -967.7826805627851
+      ],
+      "size": [
+        294.390625,
+        565.75
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 17,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 346
+        },
+        {
+          "name": "audio",
+          "shape": 7,
+          "type": "AUDIO",
+          "link": 302
+        },
+        {
+          "name": "meta_batch",
+          "shape": 7,
+          "type": "VHS_BatchManager",
+          "link": null
+        },
+        {
+          "name": "vae",
+          "shape": 7,
+          "type": "VAE",
+          "link": null
+        },
+        {
+          "name": "frame_rate",
+          "type": "FLOAT",
+          "widget": {
+            "name": "frame_rate"
+          },
+          "link": 303
+        }
+      ],
+      "outputs": [
+        {
+          "name": "Filenames",
+          "type": "VHS_FILENAMES",
+          "links": null
+        }
+      ],
+      "properties": {
+        "aux_id": "Kosinkadink/ComfyUI-VideoHelperSuite",
+        "ver": "8343122234b61a0f8eb3d1f3f98382b0f7aff2b9",
+        "Node name for S&R": "VHS_VideoCombine",
+        "cnr_id": "comfyui-videohelpersuite",
+        "ue_properties": {
+          "version": "7.1",
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {}
+        }
+      },
+      "widgets_values": {
+        "frame_rate": 16,
+        "loop_count": 0,
+        "filename_prefix": "%date:yyyyMMdd%/%date:hhmmss%_SeedVR",
+        "format": "video/nvenc_hevc-mp4",
+        "pix_fmt": "yuv420p",
+        "bitrate": 10,
+        "megabit": true,
+        "save_metadata": true,
+        "pingpong": false,
+        "save_output": true,
+        "videopreview": {
+          "hidden": false,
+          "paused": false,
+          "params": {
+            "filename": "120915_SeedVR_00001-audio.mp4",
+            "subfolder": "20260903",
+            "type": "output",
+            "format": "video/nvenc_hevc-mp4",
+            "frame_rate": 24,
+            "workflow": "120915_SeedVR_00001.png",
+            "fullpath": "D:\\USERFILES\\A1111\\outputs\\ComfyUI\\20260903\\120915_SeedVR_00001-audio.mp4"
+          },
+          "muted": false
+        }
+      },
+      "widgets_values_named": {
+        "frame_rate": 16,
+        "loop_count": 0,
+        "filename_prefix": "%date:yyyyMMdd%/%date:hhmmss%_SeedVR",
+        "format": "video/nvenc_hevc-mp4",
+        "pix_fmt": "yuv420p",
+        "bitrate": 10,
+        "megabit": true,
+        "save_metadata": true,
+        "pingpong": false,
+        "save_output": true,
+        "videopreview": {
+          "hidden": false,
+          "paused": false,
+          "params": {
+            "filename": "120915_SeedVR_00001-audio.mp4",
+            "subfolder": "20260903",
+            "type": "output",
+            "format": "video/nvenc_hevc-mp4",
+            "frame_rate": 24,
+            "workflow": "120915_SeedVR_00001.png",
+            "fullpath": "D:\\USERFILES\\A1111\\outputs\\ComfyUI\\20260903\\120915_SeedVR_00001-audio.mp4"
+          },
+          "muted": false
+        }
+      },
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 199,
+      "type": "SeedVR2TorchCompileSettings",
+      "pos": [
+        -2159.552578646796,
+        -710.9338079350739
+      ],
+      "size": [
+        308.84375,
+        261.328125
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 2,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "TORCH_COMPILE_ARGS",
+          "type": "TORCH_COMPILE_ARGS",
+          "links": [
+            336
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "ussoewwin/ComfyUI-SeedVR2_VideoUpscaler",
+        "ver": "2.5.13",
+        "Node name for S&R": "SeedVR2TorchCompileSettings",
+        "cnr_id": "seedvr2_videoupscaler",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.5.1"
+        }
+      },
+      "widgets_values": [
+        "inductor",
+        "max-autotune-no-cudagraphs",
+        false,
+        false,
+        64,
+        128
+      ],
+      "widgets_values_named": {
+        "backend": "inductor",
+        "mode": "max-autotune-no-cudagraphs",
+        "fullgraph": false,
+        "dynamic": false,
+        "dynamo_cache_size_limit": 64,
+        "dynamo_recompile_limit": 128
+      }
+    },
+    {
+      "id": 221,
+      "type": "SeedVR2LoadVAEModel",
+      "pos": [
+        -1759.5465441414685,
+        -710.0777475086605
+      ],
+      "size": [
+        321.890625,
+        366
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "torch_compile_args",
+          "shape": 7,
+          "type": "TORCH_COMPILE_ARGS",
+          "link": 336
+        }
+      ],
+      "outputs": [
+        {
+          "name": "SEEDVR2_VAE",
+          "type": "SEEDVR2_VAE",
+          "links": [
+            366,
+            370,
+            376
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "ussoewwin/ComfyUI-SeedVR2_VideoUpscaler",
+        "ver": "f5c09d2da0d6a26502f5021f630e1c11fe249a9e",
+        "Node name for S&R": "SeedVR2LoadVAEModel",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.8"
+        }
+      },
+      "widgets_values": [
+        "ema_vae_fp16.safetensors",
+        "cuda:0",
+        true,
+        512,
+        128,
+        true,
+        768,
+        128,
+        "false",
+        "cpu",
+        false
+      ],
+      "widgets_values_named": {
+        "model": "ema_vae_fp16.safetensors",
+        "device": "cuda:0",
+        "encode_tiled": true,
+        "encode_tile_size": 512,
+        "encode_tile_overlap": 128,
+        "decode_tiled": true,
+        "decode_tile_size": 768,
+        "decode_tile_overlap": 128,
+        "tile_debug": "false",
+        "offload_device": "cpu",
+        "cache_model": false
+      }
+    },
+    {
+      "id": 223,
+      "type": "FastGroupsBypasserV2",
+      "pos": [
+        -2599.5686309117327,
+        -266.3298371576148
+      ],
+      "size": [
+        287.9,
+        154
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 3,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [],
+      "properties": {
+        "matchColors": "red",
+        "matchTitle": "",
+        "showNav": true,
+        "showAllGraphs": true,
+        "sort": "position",
+        "customSortAlphabet": "",
+        "toggleRestriction": "default",
+        "effectMode": "Bypass",
+        "cnr_id": "ComfyUI-NunchakuFluxLoraStacker",
+        "ver": "efd671e174ae175699b72a7671ebd4711cd8adef",
+        "Node name for S&R": "FastGroupsBypasserV2",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.8"
+        }
+      },
+      "color": "#322",
+      "bgcolor": "#533"
+    },
+    {
+      "id": 222,
+      "type": "SeedVR2LoadTensorRTVAEDecoder",
+      "pos": [
+        -2148.120347107979,
+        -6.2051600073405595
+      ],
+      "size": [
+        355.890625,
+        226
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "SEEDVR2_VAE",
+          "type": "SEEDVR2_VAE",
+          "links": [
+            365
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "ussoewwin/ComfyUI-SeedVR2_VideoUpscaler",
+        "ver": "f5c09d2da0d6a26502f5021f630e1c11fe249a9e",
+        "Node name for S&R": "SeedVR2LoadTensorRTVAEDecoder",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.8"
+        }
+      },
+      "widgets_values": [
+        "ema_vae_fp16.safetensors",
+        "cuda:0",
+        "auto",
+        768,
+        128,
+        "25"
+      ],
+      "widgets_values_named": {
+        "model": "ema_vae_fp16.safetensors",
+        "device": "cuda:0",
+        "decode_tiled": "auto",
+        "decode_tile_size": 768,
+        "decode_tile_overlap": 128,
+        "engine_frames": "25"
+      }
+    },
+    {
+      "id": 229,
+      "type": "SeedVR2VideoUpscaler",
+      "pos": [
+        -918.0940133481431,
+        -769.6524673576839
+      ],
+      "size": [
+        330.890625,
+        454
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 12,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 356
+        },
+        {
+          "name": "dit",
+          "type": "SEEDVR2_DIT",
+          "link": 357
+        },
+        {
+          "name": "vae_encode",
+          "shape": 7,
+          "type": "SEEDVR2_VAE",
+          "link": 376
+        },
+        {
+          "name": "vae_decode",
+          "shape": 7,
+          "type": "SEEDVR2_VAE",
+          "link": 370
+        },
+        {
+          "name": "resolution",
+          "type": "INT",
+          "widget": {
+            "name": "resolution"
+          },
+          "link": 360
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            363
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "ussoewwin/ComfyUI-SeedVR2_VideoUpscaler",
+        "ver": "f5c09d2da0d6a26502f5021f630e1c11fe249a9e",
+        "Node name for S&R": "SeedVR2VideoUpscaler",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.8"
+        }
+      },
+      "widgets_values": [
+        573237492,
+        "randomize",
+        1080,
+        0,
+        25,
+        false,
+        "lab",
+        3,
+        0,
+        0,
+        0,
+        "cpu",
+        false
+      ],
+      "widgets_values_named": {
+        "seed": 573237492,
+        "control_after_generate": "randomize",
+        "resolution": 1080,
+        "max_resolution": 0,
+        "batch_size": 25,
+        "uniform_batch_size": false,
+        "color_correction": "lab",
+        "temporal_overlap": 3,
+        "prepend_frames": 0,
+        "input_noise_scale": 0,
+        "latent_noise_scale": 0,
+        "offload_device": "cpu",
+        "enable_debug": false
+      }
+    },
+    {
+      "id": 230,
+      "type": "SeedVR2VideoUpscaler",
+      "pos": [
+        -68.14950415513226,
+        -898.8337970133966
+      ],
+      "size": [
+        330.890625,
+        454
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 14,
+      "mode": 4,
+      "inputs": [
+        {
+          "name": "image",
+          "type": "IMAGE",
+          "link": 363
+        },
+        {
+          "name": "dit",
+          "type": "SEEDVR2_DIT",
+          "link": 364
+        },
+        {
+          "name": "vae_encode",
+          "shape": 7,
+          "type": "SEEDVR2_VAE",
+          "link": 366
+        },
+        {
+          "name": "vae_decode",
+          "shape": 7,
+          "type": "SEEDVR2_VAE",
+          "link": 365
+        },
+        {
+          "name": "resolution",
+          "type": "INT",
+          "widget": {
+            "name": "resolution"
+          },
+          "link": 367
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            369
+          ]
+        }
+      ],
+      "properties": {
+        "aux_id": "ussoewwin/ComfyUI-SeedVR2_VideoUpscaler",
+        "ver": "f5c09d2da0d6a26502f5021f630e1c11fe249a9e",
+        "Node name for S&R": "SeedVR2VideoUpscaler",
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {},
+          "version": "7.8"
+        }
+      },
+      "widgets_values": [
+        4158749003,
+        "randomize",
+        1080,
+        0,
+        5,
+        false,
+        "lab",
+        3,
+        0,
+        0,
+        0,
+        "cpu",
+        false
+      ],
+      "widgets_values_named": {
+        "seed": 4158749003,
+        "control_after_generate": "randomize",
+        "resolution": 1080,
+        "max_resolution": 0,
+        "batch_size": 5,
+        "uniform_batch_size": false,
+        "color_correction": "lab",
+        "temporal_overlap": 3,
+        "prepend_frames": 0,
+        "input_noise_scale": 0,
+        "latent_noise_scale": 0,
+        "offload_device": "cpu",
+        "enable_debug": false
+      }
+    }
+  ],
+  "links": [
+    [
+      141,
+      59,
+      0,
+      92,
+      0,
+      "*"
+    ],
+    [
+      142,
+      59,
+      1,
+      92,
+      1,
+      "*"
+    ],
+    [
+      194,
+      92,
+      0,
+      122,
+      0,
+      "INT,FLOAT,IMAGE,LATENT"
+    ],
+    [
+      198,
+      122,
+      0,
+      111,
+      0,
+      "*"
+    ],
+    [
+      287,
+      122,
+      0,
+      194,
+      0,
+      "*"
+    ],
+    [
+      288,
+      193,
+      0,
+      194,
+      1,
+      "INT"
+    ],
+    [
+      289,
+      92,
+      0,
+      193,
+      0,
+      "INT,FLOAT,IMAGE,LATENT"
+    ],
+    [
+      293,
+      196,
+      0,
+      197,
+      0,
+      "*"
+    ],
+    [
+      301,
+      202,
+      3,
+      203,
+      0,
+      "VHS_VIDEOINFO"
+    ],
+    [
+      302,
+      202,
+      2,
+      71,
+      1,
+      "AUDIO"
+    ],
+    [
+      303,
+      203,
+      0,
+      71,
+      4,
+      "FLOAT"
+    ],
+    [
+      306,
+      202,
+      0,
+      59,
+      0,
+      "IMAGE"
+    ],
+    [
+      336,
+      199,
+      0,
+      221,
+      0,
+      "TORCH_COMPILE_ARGS"
+    ],
+    [
+      346,
+      197,
+      0,
+      71,
+      0,
+      "IMAGE"
+    ],
+    [
+      356,
+      202,
+      0,
+      229,
+      0,
+      "IMAGE"
+    ],
+    [
+      357,
+      182,
+      0,
+      229,
+      1,
+      "SEEDVR2_DIT"
+    ],
+    [
+      360,
+      122,
+      0,
+      229,
+      4,
+      "INT"
+    ],
+    [
+      363,
+      229,
+      0,
+      230,
+      0,
+      "IMAGE"
+    ],
+    [
+      364,
+      182,
+      0,
+      230,
+      1,
+      "SEEDVR2_DIT"
+    ],
+    [
+      365,
+      222,
+      0,
+      230,
+      3,
+      "SEEDVR2_VAE"
+    ],
+    [
+      366,
+      221,
+      0,
+      230,
+      2,
+      "SEEDVR2_VAE"
+    ],
+    [
+      367,
+      194,
+      0,
+      230,
+      4,
+      "INT"
+    ],
+    [
+      369,
+      230,
+      0,
+      196,
+      0,
+      "IMAGE"
+    ],
+    [
+      370,
+      221,
+      0,
+      229,
+      3,
+      "SEEDVR2_VAE"
+    ],
+    [
+      376,
+      221,
+      0,
+      229,
+      2,
+      "SEEDVR2_VAE"
+    ]
+  ],
+  "groups": [
+    {
+      "id": 1,
+      "title": "fp16 ema",
+      "bounding": [
+        -2200.194668085504,
+        -800.4902871151172,
+        800.6879793014318,
+        595.13825466855
+      ],
+      "color": "#A88",
+      "flags": {
+        "pinned": true
+      }
+    },
+    {
+      "id": 2,
+      "title": "TensorRT VAE Decode",
+      "bounding": [
+        -2198.2740546376626,
+        -99.7459634448858,
+        458.6980530269868,
+        370.76849370769725
+      ],
+      "color": "#A88",
+      "flags": {
+        "pinned": true
+      }
+    },
+    {
+      "id": 3,
+      "title": "2nd upscale",
+      "bounding": [
+        -97.33056749873133,
+        -999.7855515438475,
+        397.4442591636839,
+        698.1728873121147
+      ],
+      "color": "#A88",
+      "flags": {
+        "pinned": true
+      }
+    }
+  ],
+  "config": {},
+  "extra": {
+    "ds": {
+      "scale": 0.2940834937055492,
+      "offset": [
+        2832.0227194858467,
+        1811.892865292833
+      ]
+    },
+    "ue_links": [],
+    "links_added_by_ue": [],
+    "frontendVersion": "1.49.6",
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true,
+    "workflowRendererVersion": "Vue-corrected",
+    "anomalous_hashes": {}
+  },
+  "version": 0.4
+}
