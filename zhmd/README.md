@@ -19,11 +19,11 @@
 
 ### 完整工作流概览（TensorRT VAE 与量化模型）
 
-![Usage Example - Full Workflow](../docs/usage_01.png)
+![Usage Example - Full Workflow](https://raw.githubusercontent.com/ussoewwin/ComfyUI-SeedVR2_VideoUpscaler/main/docs/usage_01.png)
 
 ### TensorRT VAE 解码器节点
 
-![Usage Example - TensorRT VAE Decoder](../docs/usage_02.png)
+![Usage Example - TensorRT VAE Decoder](https://raw.githubusercontent.com/ussoewwin/ComfyUI-SeedVR2_VideoUpscaler/main/docs/usage_02.png)
 
 ## 文档
 

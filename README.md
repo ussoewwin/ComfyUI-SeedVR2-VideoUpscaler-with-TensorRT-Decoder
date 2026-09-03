@@ -19,11 +19,11 @@ This repository is a fork of the official repository ([https://github.com/numz/C
 
 ### Complete Workflow Overview (TensorRT VAE & Quantized Models)
 
-![Usage Example - Full Workflow](docs/usage_01.png)
+![Usage Example - Full Workflow](https://raw.githubusercontent.com/ussoewwin/ComfyUI-SeedVR2_VideoUpscaler/main/docs/usage_01.png)
 
 ### TensorRT VAE Decoder Node
 
-![Usage Example - TensorRT VAE Decoder](docs/usage_02.png)
+![Usage Example - TensorRT VAE Decoder](https://raw.githubusercontent.com/ussoewwin/ComfyUI-SeedVR2_VideoUpscaler/main/docs/usage_02.png)
 
 ## Documentation
 
