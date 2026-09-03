@@ -1,0 +1,139 @@
+{
+  "id": "f1f73a4f-8b4a-4930-8bbb-ce6e03087e00",
+  "revision": 0,
+  "last_node_id": 2,
+  "last_link_id": 1,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "SeedVR2BuildTensorRTVAE",
+      "pos": [
+        204.1925213599303,
+        -168.1903594188512
+      ],
+      "size": [
+        349.890625,
+        254
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 0,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "STRING",
+          "type": "STRING",
+          "links": [
+            1
+          ]
+        }
+      ],
+      "properties": {
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {}
+        },
+        "aux_id": "ussoewwin/ComfyUI-SeedVR2_VideoUpscaler",
+        "ver": "f5c09d2da0d6a26502f5021f630e1c11fe249a9e",
+        "Node name for S&R": "SeedVR2BuildTensorRTVAE"
+      },
+      "widgets_values": [
+        "ema_vae_fp16.safetensors",
+        61,
+        "256",
+        "decoder",
+        16,
+        false,
+        false
+      ],
+      "widgets_values_named": {
+        "model": "ema_vae_fp16.safetensors",
+        "frames": 61,
+        "tile_size": "256",
+        "kind": "decoder",
+        "workspace_gb": 16,
+        "min_ws": false,
+        "force_rebuild": false
+      }
+    },
+    {
+      "id": 2,
+      "type": "ShowText|pysssss",
+      "pos": [
+        704.1196570552264,
+        -167.65143628885315
+      ],
+      "size": [
+        225,
+        126
+      ],
+      "flags": {
+        "pinned": true
+      },
+      "order": 1,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "text",
+          "type": "STRING",
+          "link": 1
+        }
+      ],
+      "outputs": [
+        {
+          "name": "STRING",
+          "shape": 6,
+          "type": "STRING",
+          "links": null
+        }
+      ],
+      "properties": {
+        "ue_properties": {
+          "widget_ue_connectable": {},
+          "input_ue_unconnectable": {}
+        },
+        "cnr_id": "comfyui-custom-scripts",
+        "ver": "609f3afaa74b2f88ef9ce8d939626065e3247469",
+        "Node name for S&R": "ShowText|pysssss"
+      },
+      "widgets_values": [
+        " - Built vae_decoder_tile_256_61f.rtxplan (292.7 MB in 28.9s)"
+      ],
+      "widgets_values_named": {
+        "text_0": " - Built vae_decoder_tile_256_61f.rtxplan (292.7 MB in 28.9s)"
+      }
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      0,
+      2,
+      0,
+      "STRING"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {
+    "ue_links": [],
+    "links_added_by_ue": [],
+    "ds": {
+      "scale": 0.6303940863129229,
+      "offset": [
+        530.3463370448011,
+        606.5213746818656
+      ]
+    },
+    "anomalous_hashes": {},
+    "frontendVersion": "1.49.6",
+    "VHS_latentpreview": false,
+    "VHS_latentpreviewrate": 0,
+    "VHS_MetadataImage": true,
+    "VHS_KeepIntermediate": true
+  },
+  "version": 0.4
+}
