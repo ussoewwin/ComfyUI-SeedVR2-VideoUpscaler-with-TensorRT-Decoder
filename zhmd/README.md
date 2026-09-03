@@ -29,6 +29,8 @@
 
 ### TensorRT VAE 引擎构建节点
 
+- 工作流 JSON：[`example_workflows/Tensor Build.json`](../example_workflows/Tensor%20Build.json)
+
 ![TensorRT VAE Engine Builder Node](https://raw.githubusercontent.com/ussoewwin/ComfyUI-SeedVR2-VideoUpscaler-with-TensorRT-Decoder/main/docs/build.png)
 
 **`SeedVR2 Build TensorRT VAE Engines`** 节点允许用户在 ComfyUI 中直接按需显式构建专用的 TensorRT RTX VAE 引擎（`.rtxplan`）。该节点在后台调用 GPU 追踪（`tools/cloud_export_gpu.py`）与 TensorRT 编译（`tools/cloud_build_engine.py`）。

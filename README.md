@@ -29,6 +29,8 @@ This repository is a fork of the official repository ([https://github.com/numz/C
 
 ### TensorRT VAE Engine Builder Node
 
+- Workflow JSON: [`example_workflows/Tensor Build.json`](example_workflows/Tensor%20Build.json)
+
 ![TensorRT VAE Engine Builder Node](https://raw.githubusercontent.com/ussoewwin/ComfyUI-SeedVR2-VideoUpscaler-with-TensorRT-Decoder/main/docs/build.png)
 
 The **`SeedVR2 Build TensorRT VAE Engines`** node builds dedicated TensorRT RTX VAE engines (`.rtxplan`) on demand directly within ComfyUI by running GPU tracing (`tools/cloud_export_gpu.py`) and TensorRT compilation (`tools/cloud_build_engine.py`).
