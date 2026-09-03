@@ -9,6 +9,12 @@
 
 [ussoewwin/ComfyUI-SeedVR2_VideoUpscaler](https://github.com/ussoewwin/ComfyUI-SeedVR2_VideoUpscaler) 的 Fork 发行历史。
 
+## v1.5 — 2026-09-03
+
+- **摘要：** 新增 TensorRT VAE 解码器支持与专用加载节点（`SeedVR2LoadTensorRTVAEDecoder`），支持多 Tile 引擎（256px/512px，4n+1 帧长规格）、执行上下文缓存复用、编码/解码独立解耦配置，以及引擎缺失时自动安全回退至 PyTorch VAE。
+- **技术详情：** 请参阅 [v1.5 发行说明](v1.5.md) 获取完整说明
+- **Release (GitHub):** https://github.com/ussoewwin/ComfyUI-SeedVR2_VideoUpscaler/releases/tag/v1.5
+
 ## v1.4 — 2026-07-31
 
 - **摘要：** 在 `MODEL_REGISTRY` 中登记 3B HSWQ INT8 ConvRot 与 NVFP4 DiT 权重包（与 7B 相同的原生显存路径）。

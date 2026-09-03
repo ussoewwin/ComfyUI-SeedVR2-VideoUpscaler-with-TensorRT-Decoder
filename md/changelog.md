@@ -9,6 +9,12 @@
 
 Fork release history for [ussoewwin/ComfyUI-SeedVR2_VideoUpscaler](https://github.com/ussoewwin/ComfyUI-SeedVR2_VideoUpscaler).
 
+## v1.5 — 2026-09-03
+
+- **Summary:** Added TensorRT VAE Decoder support with dedicated loader node (`SeedVR2LoadTensorRTVAEDecoder`), multi-tile engine support (256px/512px, 4n+1 frame sizes), cached execution context reuse, decoupled encode/decode configurations, and automatic safe fallback to PyTorch VAE on missing engines.
+- **Technical Details:** See [v1.5 Release Notes](../zhmd/v1.5.md) for complete explanation
+- **Release (GitHub):** https://github.com/ussoewwin/ComfyUI-SeedVR2_VideoUpscaler/releases/tag/v1.5
+
 ## v1.4 — 2026-07-31
 
 - **Summary:** Register 3B HSWQ INT8 ConvRot and NVFP4 DiT packs in `MODEL_REGISTRY` (same native VRAM path as 7B).
