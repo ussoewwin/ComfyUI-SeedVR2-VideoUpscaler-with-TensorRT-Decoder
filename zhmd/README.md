@@ -42,8 +42,8 @@
 - **`model`**：原始 PyTorch VAE 模型权重（例如 `ema_vae_fp16.safetensors`）。
 - **`frames`**：引擎目标帧长。自动规范化为所需的 **4n+1** 格式（例如 `5`、`21`、`29`、`61`、`89`、`101`、`185`、`205` 等）。
 - **`tile_size`**：空间分块尺寸（`256` 或 `512`）：
-  - **`256`**：适合在 16GB–24GB 显存显卡上构建长帧序列（60f–185f+）引擎。
-  - **`512`**：空间分块更大、细节还原更优，但编译时显存占用较高（建议在 16GB 显卡上用于 21f–29f 规格）。
+  - **`256`**：**VAE 解码器（`kind: decoder`）必须设置为 256**。TensorRT VAE 解码器严格按照 256x256 分块执行。也适合在 16GB–24GB 显存显卡上构建长帧序列（60f–185f+）引擎。
+  - **`512`**：主要用于 VAE 编码器（`kind: encoder`），空间分块更大、细节还原更优，但编译时显存占用较高。
 - **`kind`**：选择构建的引擎类型：
   - **`both`**：同时构建编码器与解码器引擎。
   - **`decoder`**：仅构建 VAE 解码器引擎（推荐用于 Phase 3 解码加速）。
@@ -53,10 +53,14 @@
 - **`force_rebuild`**：启用（`True`）后，即使引擎文件已存在也会强制重新构建并覆盖。
 - **输出（`STRING`）**：输出构建状态、生成引擎文件名、文件大小及总耗时。可连接 `Show Text` 节点实时查看。
 
+> [!IMPORTANT]
+> **解码器分块尺寸（tile_size）绝对要求：**
+> 构建 VAE 解码器引擎（`kind: decoder` 或 `kind: both`）时，**`tile_size` 必须始终设置为 `256`**。SeedVR2 TensorRT VAE 解码器加载节点严格要求 256x256 空间分块，若使用 512 构建解码器引擎将在推理时发生 Shape 不匹配错误。
+
 #### 使用与构建步骤
 
 1. 在工作流中添加 **`SeedVR2 Build TensorRT VAE Engines`** 节点。
-2. 配置所需的帧长（`frames`）、空间尺寸 `tile_size`（256 或 512）以及 `kind`（如 `decoder`）。
+2. 配置所需的帧长（`frames`）、空间尺寸 `tile_size`（**解码器必须设置为 `256`**）以及 `kind`（如 `decoder`）。
 3. 点击 **Queue Prompt** 启动构建，系统将在后台自动完成 ONNX 导出与 TensorRT 引擎构建。
 4. 构建完成后重启 ComfyUI，**`SeedVR2 Load TensorRT VAE Decoder`** 节点的 `engine_frames` 下拉列表中将显示新构建的帧数，即可开启极速解码。
 

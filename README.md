@@ -42,8 +42,8 @@ Built engines land in `tensorrt_backend/artifacts/` and automatically populate t
 - **`model`**: Source PyTorch VAE model checkpoint (e.g. `ema_vae_fp16.safetensors`).
 - **`frames`**: Target frame count for the engine. Automatically normalized to the required **4n+1** sequence format (e.g. `5`, `21`, `29`, `61`, `89`, `101`, `185`, `205`).
 - **`tile_size`**: Spatial tile size (`256` or `512`):
-  - **`256`**: Recommended for long frame sequences (60f–185f+) on 16GB–24GB VRAM GPUs.
-  - **`512`**: Highest quality with larger spatial patches; requires higher build VRAM (recommended for shorter frame sizes like 21f–29f on 16GB GPUs).
+  - **`256`**: **Mandatory for Decoder engines (`kind: decoder`)**. The TensorRT VAE Decoder operates on 256x256 spatial patches. Also recommended for long frame sequences (60f–185f+) on 16GB–24GB VRAM GPUs.
+  - **`512`**: Intended for Encoder engines (`kind: encoder`) for larger spatial patch processing. Requires significantly higher compilation VRAM.
 - **`kind`**: Select which engine to build:
   - **`both`**: Builds both encoder and decoder engines.
   - **`decoder`**: Builds the VAE decoder engine only (recommended for Phase 3 acceleration).
@@ -53,10 +53,14 @@ Built engines land in `tensorrt_backend/artifacts/` and automatically populate t
 - **`force_rebuild`**: When enabled (`True`), rebuilds and overwrites existing engine files.
 - **Output (`STRING`)**: Outputs build status, generated engine filename, file size, and total compilation time. Connect to a `Show Text` node to inspect results in real time.
 
+> [!IMPORTANT]
+> **Decoder Tile Size Requirement:**
+> When building engines for the VAE Decoder (`kind: decoder` or `kind: both`), **`tile_size` must always be set to `256`**. The SeedVR2 TensorRT VAE Decoder loader strictly requires spatial patches of 256x256; building a decoder engine with `tile_size: 512` will result in a shape mismatch during inference.
+
 #### How to Use & Build Engines
 
 1. Place the **`SeedVR2 Build TensorRT VAE Engines`** node in your workflow.
-2. Select your desired target frame count (`frames`), spatial `tile_size` (`256` or `512`), and `kind` (e.g. `decoder`).
+2. Select your desired target frame count (`frames`), spatial `tile_size` (**must be `256` for decoder**), and `kind` (e.g. `decoder`).
 3. Click **Queue Prompt** to run the build. The node executes ONNX export and TensorRT compilation in the background.
 4. Once completed, restart ComfyUI. The newly built engine frame size will appear in the `engine_frames` list of the **`SeedVR2 Load TensorRT VAE Decoder`** node.
 
