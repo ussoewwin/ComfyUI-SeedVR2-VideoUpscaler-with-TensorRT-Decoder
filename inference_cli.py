@@ -59,6 +59,36 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 if script_dir not in sys.path:
     sys.path.insert(0, script_dir)
 
+def _ensure_ffmpeg_path():
+    import shutil
+    if shutil.which("ffmpeg") and shutil.which("ffprobe"):
+        return
+    candidate_dirs = [
+        Path(r"C:\Program Files\ffmpeg\bin"),
+        Path(r"C:\Program Files\ffmpeg"),
+        Path(r"C:\Program Files (x86)\ffmpeg\bin"),
+        Path(r"C:\ffmpeg\bin"),
+        Path(r"D:\ffmpeg\bin"),
+        Path(__file__).resolve().parent / "bin" / "ffmpeg" / "bin",
+        Path(__file__).resolve().parent / "bin",
+    ]
+    for d in candidate_dirs:
+        if (d / "ffmpeg.exe").exists() and (d / "ffprobe.exe").exists():
+            os.environ["PATH"] = str(d) + os.pathsep + os.environ.get("PATH", "")
+            return
+
+    try:
+        import imageio_ffmpeg
+        ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+        if ffmpeg_exe and Path(ffmpeg_exe).exists():
+            ffmpeg_dir = str(Path(ffmpeg_exe).parent)
+            if ffmpeg_dir not in os.environ.get("PATH", ""):
+                os.environ["PATH"] = ffmpeg_dir + os.pathsep + os.environ.get("PATH", "")
+    except Exception:
+        pass
+
+_ensure_ffmpeg_path()
+
 # Set environment variable so all spawned processes can find modules
 os.environ['PYTHONPATH'] = script_dir + ':' + os.environ.get('PYTHONPATH', '')
 

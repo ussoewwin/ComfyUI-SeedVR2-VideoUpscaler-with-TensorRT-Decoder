@@ -3,8 +3,41 @@ ComfyUI-SeedVR2_VideoUpscaler
 Official SeedVR2 integration for ComfyUI
 """
 
-import sys
+import os
+import shutil
 import subprocess
+import sys
+from pathlib import Path
+
+# Ensure FFmpeg is found across standard Windows paths or bundled imageio_ffmpeg
+def _ensure_ffmpeg_path():
+    if shutil.which("ffmpeg") and shutil.which("ffprobe"):
+        return
+    candidate_dirs = [
+        Path(r"C:\Program Files\ffmpeg\bin"),
+        Path(r"C:\Program Files\ffmpeg"),
+        Path(r"C:\Program Files (x86)\ffmpeg\bin"),
+        Path(r"C:\ffmpeg\bin"),
+        Path(r"D:\ffmpeg\bin"),
+        Path(__file__).resolve().parent / "bin" / "ffmpeg" / "bin",
+        Path(__file__).resolve().parent / "bin",
+    ]
+    for d in candidate_dirs:
+        if (d / "ffmpeg.exe").exists() and (d / "ffprobe.exe").exists():
+            os.environ["PATH"] = str(d) + os.pathsep + os.environ.get("PATH", "")
+            return
+
+    try:
+        import imageio_ffmpeg
+        ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+        if ffmpeg_exe and Path(ffmpeg_exe).exists():
+            ffmpeg_dir = str(Path(ffmpeg_exe).parent)
+            if ffmpeg_dir not in os.environ.get("PATH", ""):
+                os.environ["PATH"] = ffmpeg_dir + os.pathsep + os.environ.get("PATH", "")
+    except Exception:
+        pass
+
+_ensure_ffmpeg_path()
 
 # Check critical dependencies early to provide better error messages
 # and auto-install if possible, especially useful for Vast.ai / RunPod

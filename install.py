@@ -28,6 +28,8 @@ def log_step(message: str) -> None:
 
 
 def ensure_ffmpeg_path() -> None:
+    if shutil.which("ffmpeg") and shutil.which("ffprobe"):
+        return
     candidate_dirs = [
         Path(r"C:\Program Files\ffmpeg\bin"),
         Path(r"C:\Program Files\ffmpeg"),
@@ -40,7 +42,17 @@ def ensure_ffmpeg_path() -> None:
     for d in candidate_dirs:
         if (d / "ffmpeg.exe").exists() and (d / "ffprobe.exe").exists():
             os.environ["PATH"] = str(d) + os.pathsep + os.environ.get("PATH", "")
-            break
+            return
+
+    try:
+        import imageio_ffmpeg
+        ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+        if ffmpeg_exe and Path(ffmpeg_exe).exists():
+            ffmpeg_dir = str(Path(ffmpeg_exe).parent)
+            if ffmpeg_dir not in os.environ.get("PATH", ""):
+                os.environ["PATH"] = ffmpeg_dir + os.pathsep + os.environ.get("PATH", "")
+    except Exception:
+        pass
 
 
 def pip_install(args: list[str]) -> None:
