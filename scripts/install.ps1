@@ -128,59 +128,8 @@ try {
         Invoke-TargetPip @('install', '--requirement', $reqFile, '--no-deps', '--index-url', 'https://pypi.org/simple')
     }
 
-    function Install-CachedWheel([string]$ModuleName, [string]$PackageName, [string]$Url) {
-        $check = & $TargetPython -c "import $ModuleName" 2>$null
-        if ($LASTEXITCODE -eq 0 -and -not $Repair) {
-            Write-Host "$PackageName is already installed." -ForegroundColor Green
-            return
-        }
-
-        $wheelsDir = Join-Path $NodeRoot 'wheels'
-        New-Item -ItemType Directory -Force $wheelsDir | Out-Null
-        $filename = [System.IO.Path]::GetFileName($Url.Split('?')[0])
-        $filename = [System.Uri]::UnescapeDataString($filename)
-        $cachedPath = Join-Path $wheelsDir $filename
-
-        if (-not (Test-Path -LiteralPath $cachedPath)) {
-            Write-Step "Downloading $PackageName wheel"
-            Invoke-WebRequest -Uri $Url -OutFile $cachedPath -UseBasicParsing
-        }
-
-        Write-Step "Installing $PackageName"
-        Invoke-TargetPip @('install', $cachedPath, '--no-deps')
-    }
-
-    Write-Step 'Installing FlashAttention 2 and SageAttention 2'
-    $pyTag = (& $TargetPython -c "import sys; print(f'cp{sys.version_info.major}{sys.version_info.minor}')" 2>$null).Trim()
-    Write-Host "Detected ComfyUI Python tag: $pyTag" -ForegroundColor Cyan
-
-    $flashWheels = @{
-        'cp311' = 'https://huggingface.co/ussoewwin/Flash-Attention-2_for_Windows/resolve/main/flash_attn-2.8.3%2Bcu130torch2.9.1cxx11abiTRUE-cp311-cp311-win_amd64.whl'
-        'cp312' = 'https://huggingface.co/ussoewwin/Flash-Attention-2_for_Windows/resolve/main/flash_attn-2.9.1%2Bcu132torch2.13.0cxx11abiTRUE-cp312-cp312-win_amd64.whl'
-        'cp313' = 'https://huggingface.co/ussoewwin/Flash-Attention-2_for_Windows/resolve/main/flash_attn-2.9.1%2Bcu132torch2.13.0cxx11abiTRUE-cp313-cp313-win_amd64.whl'
-        'cp314' = 'https://huggingface.co/ussoewwin/Flash-Attention-2_for_Windows/resolve/main/flash_attn-2.9.1%2Bcu132torch2.13.0cxx11abiTRUE-cp314-cp314-win_amd64.whl'
-    }
-
-    $sageWheels = @{
-        'cp312' = 'https://huggingface.co/ussoewwin/Sage-Attention-for-Windows/resolve/main/sageattention-2.2.0.post6%2Bcu132torch2.13.0-cp312-cp312-win_amd64.whl'
-        'cp313' = 'https://huggingface.co/ussoewwin/Sage-Attention-for-Windows/resolve/main/sageattention-2.2.0.post6%2Bcu132torch2.13.0-cp313-cp313-win_amd64.whl'
-        'cp314' = 'https://huggingface.co/ussoewwin/Sage-Attention-for-Windows/resolve/main/sageattention-2.2.0.post6%2Bcu132torch2.13.0-cp314-cp314-win_amd64.whl'
-    }
-
-    if ($flashWheels.ContainsKey($pyTag)) {
-        try { Install-CachedWheel 'flash_attn' 'FlashAttention 2' $flashWheels[$pyTag] } catch { Write-Warning "FlashAttention 2 installation skipped: $_" }
-    } else {
-        Write-Host "No prebuilt FlashAttention 2 wheel for $pyTag." -ForegroundColor Yellow
-    }
-
-    if ($sageWheels.ContainsKey($pyTag)) {
-        try { Install-CachedWheel 'sageattention' 'SageAttention 2' $sageWheels[$pyTag] } catch { Write-Warning "SageAttention 2 installation skipped: $_" }
-    } else {
-        Write-Host "No prebuilt SageAttention 2 wheel for $pyTag." -ForegroundColor Yellow
-    }
-
     Write-Step 'Checking Attention & CUDA optimization'
-    & $TargetPython -c "import sys, torch; sys.path.insert(0, '.'); from src.optimization.compatibility import SAGE_ATTN_2_AVAILABLE, FLASH_ATTN_2_AVAILABLE; print('SageAttention 2:', 'ready' if SAGE_ATTN_2_AVAILABLE else 'not available'); print('FlashAttention 2:', 'ready' if FLASH_ATTN_2_AVAILABLE else 'not available')"
+    & $TargetPython -c "import sys, torch; sys.path.insert(0, '.'); from src.optimization.compatibility import SAGE_ATTN_2_AVAILABLE, FLASH_ATTN_2_AVAILABLE; print('SageAttention 2:', 'ready' if SAGE_ATTN_2_AVAILABLE else 'not available (using SDPA)'); print('FlashAttention 2:', 'ready' if FLASH_ATTN_2_AVAILABLE else 'not available (using SDPA)')"
     if ($LASTEXITCODE -ne 0) { Write-Warning 'Attention kernel verification reported a warning.' }
 
     if (-not $SkipModels) {

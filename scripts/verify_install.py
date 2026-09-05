@@ -68,12 +68,10 @@ def main() -> int:
 
     try:
         from src.optimization.compatibility import SAGE_ATTN_2_AVAILABLE, FLASH_ATTN_2_AVAILABLE
-        print(f"SageAttention 2: {'ready' if SAGE_ATTN_2_AVAILABLE else 'not available'}")
-        print(f"FlashAttention 2: {'ready' if FLASH_ATTN_2_AVAILABLE else 'not available'}")
-        if not (SAGE_ATTN_2_AVAILABLE or FLASH_ATTN_2_AVAILABLE):
-            print("Note: Neither SageAttention 2 nor FlashAttention 2 is available; standard PyTorch SDPA attention will be used.")
-    except Exception as exc:
-        print(f"Attention kernel check notice: {exc}")
+        print(f"SageAttention 2: {'ready' if SAGE_ATTN_2_AVAILABLE else 'not available (using SDPA)'}")
+        print(f"FlashAttention 2: {'ready' if FLASH_ATTN_2_AVAILABLE else 'not available (using SDPA)'}")
+    except Exception:
+        pass
 
     missing_engines = []
     for name in REQUIRED_ENGINES:
