@@ -71,10 +71,11 @@ def main() -> int:
         print(f"SageAttention 2: {'ready' if SAGE_ATTN_2_AVAILABLE else 'not available'}")
         print(f"FlashAttention 2: {'ready' if FLASH_ATTN_2_AVAILABLE else 'not available'}")
         if not (SAGE_ATTN_2_AVAILABLE or FLASH_ATTN_2_AVAILABLE):
-            failures.append("Neither SageAttention 2 nor FlashAttention 2 is available")
+            print("Note: Neither SageAttention 2 nor FlashAttention 2 is available; standard PyTorch SDPA attention will be used.")
     except Exception as exc:
-        failures.append(f"Attention kernel check failed: {exc}")
+        print(f"Attention kernel check notice: {exc}")
 
+    missing_engines = []
     for name in REQUIRED_ENGINES:
         found = False
         for s_dir in SEARCH_DIRS:
@@ -83,7 +84,13 @@ def main() -> int:
                 found = True
                 break
         if not found:
-            failures.append(f"TensorRT engine is missing: {name}")
+            missing_engines.append(name)
+
+    if missing_engines:
+        print("\nNote: Some TensorRT RTX VAE engines are not yet present:")
+        for name in missing_engines:
+            print(f" - {name}")
+        print("Engines can be built on demand in ComfyUI using the 'SeedVR2 Build TensorRT VAE Engines' node.")
 
     if failures:
         print("\nInstallation is incomplete:")

@@ -50,6 +50,8 @@ _REQUIRED_PACKAGES = [
     ("matplotlib", None),
     ("tensorrt-rtx", "tensorrt_rtx"),
     ("onnx", "onnx"),
+    ("onnxscript", "onnxscript"),
+    ("polygraphy", "polygraphy"),
 ]
 
 for pkg, imp in _REQUIRED_PACKAGES:
