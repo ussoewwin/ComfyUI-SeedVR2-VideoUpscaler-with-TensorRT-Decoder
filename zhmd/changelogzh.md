@@ -16,6 +16,7 @@ Fork 发行历史。
   - **统一注意力机制与 SDPA 标准：** 彻底废除 `install.py` 与 `scripts/install.ps1` 中脆弱的 FlashAttention 2 / SageAttention 2 外部 wheel 强制下载与安装逻辑；未安装自定义注意力加速库时，统一安全回退至 PyTorch 原生 SDPA（`attention_mode: sdpa`）（[#1](https://github.com/ussoewwin/ComfyUI-SeedVR2-VideoUpscaler-with-TensorRT-Decoder/issues/1)）。
   - **全链路 FFmpeg 路径自动解析：** 在节点初始化（`__init__.py`）、安装器（`install.py`）、环境验证（`scripts/verify_install.py`）及 CLI 中全面引入多候选路径扫描与 `imageio_ffmpeg` 自动兜底机制，彻底杜绝视频合成与导出时的 PATH 缺失异常。
   - **解码器引擎规范明示：** 在文档中明确规定构建 TensorRT VAE 解码器引擎（`kind: decoder`）时必须使用 `tile_size: 256`，彻底杜绝推理时的空间维度不匹配问题。
+  - **全面支持 64-bit 随机种子：** 将 seed 控件范围拓展至完整 64 位（`0..0xffffffffffffffff`），对齐 ComfyUI 核心节点（KSampler），并彻底移除冗余的 NumPy 随机种子依赖（[PR #635](https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler/pull/635)）。
 - **技术详情：** 请参阅 [v1.5.1 发行说明](v1.5.1.md) 获取完整说明
 
 ## v1.5 — 2026-09-03

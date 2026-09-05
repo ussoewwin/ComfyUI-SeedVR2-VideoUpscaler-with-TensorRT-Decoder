@@ -16,6 +16,7 @@ Fork release history.
   - **Attention Backend Unification & PyTorch SDPA Standard:** Removed brittle wheel auto-downloaders for FlashAttention 2 and SageAttention 2, standardizing on PyTorch native SDPA fallback (`attention_mode: sdpa`) when custom attention packages are absent ([#1](https://github.com/ussoewwin/ComfyUI-SeedVR2-VideoUpscaler-with-TensorRT-Decoder/issues/1)).
   - **Comprehensive FFmpeg PATH Discovery:** Implemented proactive multi-candidate directory search and `imageio_ffmpeg` fallback across runtime module loading (`__init__.py`), `install.py`, `scripts/verify_install.py`, and CLI to eliminate video export crashes.
   - **Decoder Engine Tile Size Specification:** Documented mandatory `tile_size: 256` constraint for TensorRT VAE Decoder engine compilation to prevent spatial dimension mismatch errors during inference.
+  - **Full 64-bit Seed Range:** Expanded seed input range to full 64-bit (`0..0xffffffffffffffff`) matching ComfyUI core nodes (KSampler) and removed obsolete NumPy random seed dependency ([PR #635](https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler/pull/635)).
 - **Technical Details:** See [v1.5.1 Release Notes](https://github.com/ussoewwin/ComfyUI-SeedVR2-VideoUpscaler-with-TensorRT-Decoder/releases/tag/v1.5.1) for complete explanation
 
 ## v1.5 — 2026-09-03
