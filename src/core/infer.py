@@ -89,13 +89,40 @@ def _trt_encode_batch(enc_sample, vae, dit_model, engine_frames_setting):
 
 
 def _trt_decode_batch(dec_latent, vae, dit_model, engine_frames_setting):
-    """Decode a long latent by feeding the TensorRT decoder engine-sized chunks ONLY."""
-    from .trt_decoder import decode as trt_decode, resolve_engine_frames
+    """Decode a latent batch with the TensorRT decoder, chunking to engine size.
+
+    Engine selection is based on this batch's actual length (pick_engine_frames),
+    so any downloaded engine (e.g. 41f/61f) is used instead of silently falling
+    back to the fp16 VAE. Batches shorter than the smallest engine are padded to
+    engine size, decoded in 1 shot, then cropped back.
+    """
+    from .trt_decoder import decode as trt_decode, pick_engine_frames
+    from .trt_decoder import _TRT_DEBUG as _DBG_ON, _trt_dbg_log as _dbg_log, _trt_dbg_stats as _dbg_stats
     latent_frames = dec_latent.shape[2]
-    engine_video_frames = resolve_engine_frames(engine_frames_setting)
+    batch_video_frames = (latent_frames - 1) * 4 + 1
+    if _DBG_ON:
+        _dbg_stats(f"batch_in_T{latent_frames}", dec_latent)
+        # zero-energy row/col scan (latent H/W dims are 3/4)
+        _dl = dec_latent.detach().float()
+        if _dl.ndim == 5 and _dl.shape[1] == 16:
+            _rowm = _dl.abs().mean(dim=(0, 1, 2, 4))
+            _colm = _dl.abs().mean(dim=(0, 1, 2, 3))
+            _zr = (_rowm < 1e-6).nonzero().flatten().tolist()
+            _zc = (_colm < 1e-6).nonzero().flatten().tolist()
+            _tl = float(_dl[:, :, :, : min(32, _dl.shape[3]), : min(32, _dl.shape[4])].abs().mean())
+            _gl = float(_dl.abs().mean())
+            _dbg_log(f"batch_in_T{latent_frames}: zeroRows={_zr[:30]} zeroCols={_zc[:30]} "
+                     f"TL32absmean={_tl:.4f} global={_gl:.4f} ratio={_tl / max(_gl, 1e-9):.3f}")
+    engine_video_frames = pick_engine_frames(batch_video_frames, engine_frames_setting)
     if engine_video_frames is None:
         raise RuntimeError("No TensorRT VAE decoder engine available")
     engine_latent = (engine_video_frames - 1) // 4 + 1
+    if latent_frames < engine_latent:
+        # Batch is shorter than every engine: pad to engine size, 1-shot, crop.
+        pad = engine_latent - latent_frames
+        padded = torch.nn.functional.pad(dec_latent, (0, 0, 0, 0, 0, pad))
+        sample = trt_decode(padded, vae=vae, dit_model=dit_model, engine_frames=str(engine_video_frames))
+        return sample[:, :, :batch_video_frames]
     if latent_frames == engine_latent:
         return trt_decode(dec_latent, vae=vae, dit_model=dit_model, engine_frames=str(engine_video_frames))
     lat_stride = engine_latent - 1
@@ -107,7 +134,7 @@ def _trt_decode_batch(dec_latent, vae, dit_model, engine_frames_setting):
         chunk = dec_latent[:, :, start:start + engine_latent].contiguous()
         sample = trt_decode(chunk, vae=vae, dit_model=dit_model, engine_frames=str(engine_video_frames))
         parts.append((sample, start * 4))
-    out_frames = (latent_frames - 1) * 4 + 1
+    out_frames = batch_video_frames
     s0 = parts[0][0]
     result = torch.zeros((1, 3, out_frames, s0.shape[3], s0.shape[4]), device=s0.device, dtype=s0.dtype)
     for sample, out_start in parts:

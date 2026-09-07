@@ -5,10 +5,35 @@ Executes exact 1-shot TensorRT acceleration for ANY batch size.
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
 from threading import Lock
 
 import torch
+
+# --- TRT decode debug hooks (SEEDVR2_TRT_DEBUG=1 to enable; default off) ---
+_TRT_DEBUG = os.environ.get("SEEDVR2_TRT_DEBUG", "0") == "1"
+_TRT_DEBUG_DIR = os.environ.get("SEEDVR2_TRT_DEBUG_DIR", "") or None
+
+def _trt_dbg_log(msg):
+    if _TRT_DEBUG:
+        print(f"[TRT-DEBUG] {msg}", flush=True)
+
+def _trt_dbg_stats(tag, t):
+    """Log + save tensor stats (input latents / outputs)."""
+    if not _TRT_DEBUG:
+        return
+    tt = t.detach().float()
+    _trt_dbg_log(f"{tag}: shape={tuple(tt.shape)} dtype={t.dtype} "
+                f"min={float(tt.min()):.4f} max={float(tt.max()):.4f} "
+                f"mean={float(tt.mean()):.4f} std={float(tt.std()):.4f} "
+                f"NaN={bool(torch.isnan(tt).any())} Inf={bool(torch.isinf(tt).any())}")
+    if _TRT_DEBUG_DIR:
+        try:
+            import os as _os
+            torch.save(tt.cpu(), _os.path.join(_TRT_DEBUG_DIR, tag.replace(' ', '_') + '.pt'))
+        except Exception as e:
+            _trt_dbg_log(f"save {tag} failed: {e}")
 
 try:
     import tensorrt_rtx as trt
@@ -141,6 +166,12 @@ def _decode_single_chunk(latent: torch.Tensor, latent_frames: int, vae: torch.nn
                 if not context.execute_async_v3(stream.cuda_stream):
                     raise RuntimeError(f"TensorRT VAE decoder failed at tile y={y}, x={x}")
                 stream.synchronize()
+                if _TRT_DEBUG:
+                    _dbg_tv = tile_output.float()
+                    _dbg_sd = float(_dbg_tv.std())
+                    _trt_dbg_log(f"tile y={y} x={x} (oy={y * 8},ox={x * 8}) "
+                                f"min={float(_dbg_tv.min()):.4f} max={float(_dbg_tv.max()):.4f} "
+                                f"std={_dbg_sd:.5f}" + ("  <<< BLACK?" if _dbg_sd < 0.05 else ""))
                 oy, ox = y * 8, x * 8
                 wy = _feather(out_tile, out_overlap, y != ys[0], y != ys[-1], tile_output.device)
                 wx = _feather(out_tile, out_overlap, x != xs[0], x != xs[-1], tile_output.device)
@@ -149,24 +180,60 @@ def _decode_single_chunk(latent: torch.Tensor, latent_frames: int, vae: torch.nn
                 weights[:, :, :, oy:oy + out_tile, ox:ox + out_tile] += window
 
     decoded = (result / weights.clamp_min(1e-6)).clamp(-2.0, 2.0)[:, :, :, :out_h, :out_w].to(latent.dtype)
+    if _TRT_DEBUG:
+        _trt_dbg_stats(f"chunk_out_{video_frames}f", decoded)
     return decoded
 
 
-def _pick_engine_frames(video_frames: int, preferred: str = "auto") -> int | None:
-    """Pick the decoder engine frame size. preferred (from the loader dropdown) wins if its engine exists."""
+_ENGINE_FILE_RE = re.compile(r"^vae_decoder_tile_\d+_(\d+)f\.rtxplan$")
+
+
+def _available_engine_frames() -> list[int]:
+    """Return the sorted video-frame sizes of every usable decoder engine on disk."""
+    found: set[int] = set()
+    for d in ARTIFACTS_DIRS:
+        try:
+            if not d.is_dir():
+                continue
+            for p in d.iterdir():
+                m = _ENGINE_FILE_RE.match(p.name)
+                if m and p.is_file():
+                    try:
+                        if p.stat().st_size > 1_000_000:
+                            found.add(int(m.group(1)))
+                    except OSError:
+                        continue
+        except OSError:
+            continue
+    return sorted(found)
+
+
+def pick_engine_frames(video_frames: int, preferred: str = "auto") -> int | None:
+    """Pick the decoder engine frame size for a video of `video_frames` frames.
+
+    Selection order:
+    1. preferred (from the loader dropdown / settings node) if that engine exists;
+    2. an engine matching video_frames exactly (1-shot decode);
+    3. the largest engine that fits inside video_frames (chunked decode);
+    4. if every engine is larger than the clip, the smallest engine (decode pads/crops);
+    5. None only when no engine exists at all (the sole legitimate fallback case).
+    """
+    engines = _available_engine_frames()
+    if not engines:
+        return None
     if preferred != "auto":
         try:
             cand = int(preferred)
-            path, _, _ = find_engine_path((cand - 1) // 4 + 1)
-            if path is not None:
+            if cand in engines:
                 return cand
         except ValueError:
             pass
-    for cand in (video_frames, 29, 21, 5):
-        path, _, _ = find_engine_path((cand - 1) // 4 + 1)
-        if path is not None:
-            return cand
-    return None
+    if video_frames in engines:
+        return video_frames
+    fits = [e for e in engines if e <= video_frames]
+    if fits:
+        return fits[-1]
+    return engines[0]
 
 
 @torch.inference_mode()
@@ -199,9 +266,20 @@ def decode(latent: torch.Tensor, vae: torch.nn.Module | None = None, dit_model: 
     _, _, latent_frames, _, _ = latent.shape
     video_frames = (latent_frames - 1) * 4 + 1
 
-    engine_video_frames = _pick_engine_frames(video_frames, engine_frames)
+    engine_video_frames = pick_engine_frames(video_frames, engine_frames)
     if engine_video_frames is None:
-        raise FileNotFoundError("No TensorRT VAE decoder engine found (need vae_decoder_tile_256_{5,21,29}f.rtxplan)")
+        raise FileNotFoundError(
+            "No TensorRT VAE decoder engine found. Build or download one first "
+            "(e.g. vae_decoder_tile_256_{21,25,29,33,41,...}f.rtxplan)."
+        )
+    if engine_video_frames > video_frames:
+        # The clip is shorter than every available engine: pad the latent to the
+        # engine size, decode in 1 shot, then crop back to the actual length.
+        engine_latent = (engine_video_frames - 1) // 4 + 1
+        pad = engine_latent - latent_frames
+        padded = torch.nn.functional.pad(latent, (0, 0, 0, 0, 0, pad))
+        sample = _decode_single_chunk(padded, engine_latent, vae=vae, dit_model=dit_model)
+        return sample[:, :, :video_frames]
     if engine_video_frames == video_frames:
         print(f"[SeedVR2 TensorRT] Decoding {engine_video_frames}f in 1 shot with dedicated {engine_video_frames}f TensorRT engine...")
         return _decode_single_chunk(latent, latent_frames, vae=vae, dit_model=dit_model)
@@ -213,7 +291,17 @@ def decode(latent: torch.Tensor, vae: torch.nn.Module | None = None, dit_model: 
 
 def resolve_engine_frames(preferred: str = "auto") -> int | None:
     """Return the largest available decoder engine video-frame size (for chunking)."""
-    return _pick_engine_frames(29, preferred)
+    engines = _available_engine_frames()
+    if not engines:
+        return None
+    if preferred != "auto":
+        try:
+            cand = int(preferred)
+            if cand in engines:
+                return cand
+        except ValueError:
+            pass
+    return engines[-1]
 
 
 def release() -> None:
