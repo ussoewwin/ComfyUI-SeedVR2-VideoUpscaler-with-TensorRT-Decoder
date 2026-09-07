@@ -13,8 +13,6 @@ sys.path.insert(0, str(ROOT))
 
 
 def _ensure_ffmpeg_path():
-    if shutil.which("ffmpeg") and shutil.which("ffprobe"):
-        return
     candidate_dirs = [
         Path(r"C:\Program Files\ffmpeg\bin"),
         Path(r"C:\Program Files\ffmpeg"),
@@ -27,17 +25,7 @@ def _ensure_ffmpeg_path():
     for d in candidate_dirs:
         if (d / "ffmpeg.exe").exists() and (d / "ffprobe.exe").exists():
             os.environ["PATH"] = str(d) + os.pathsep + os.environ.get("PATH", "")
-            return
-
-    try:
-        import imageio_ffmpeg
-        ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
-        if ffmpeg_exe and Path(ffmpeg_exe).exists():
-            ffmpeg_dir = str(Path(ffmpeg_exe).parent)
-            if ffmpeg_dir not in os.environ.get("PATH", ""):
-                os.environ["PATH"] = ffmpeg_dir + os.pathsep + os.environ.get("PATH", "")
-    except Exception:
-        pass
+            break
 
 
 _ensure_ffmpeg_path()
@@ -80,12 +68,13 @@ def main() -> int:
 
     try:
         from src.optimization.compatibility import SAGE_ATTN_2_AVAILABLE, FLASH_ATTN_2_AVAILABLE
-        print(f"SageAttention 2: {'ready' if SAGE_ATTN_2_AVAILABLE else 'not available (using SDPA)'}")
-        print(f"FlashAttention 2: {'ready' if FLASH_ATTN_2_AVAILABLE else 'not available (using SDPA)'}")
-    except Exception:
-        pass
+        print(f"SageAttention 2: {'ready' if SAGE_ATTN_2_AVAILABLE else 'not available'}")
+        print(f"FlashAttention 2: {'ready' if FLASH_ATTN_2_AVAILABLE else 'not available'}")
+        if not (SAGE_ATTN_2_AVAILABLE or FLASH_ATTN_2_AVAILABLE):
+            failures.append("Neither SageAttention 2 nor FlashAttention 2 is available")
+    except Exception as exc:
+        failures.append(f"Attention kernel check failed: {exc}")
 
-    missing_engines = []
     for name in REQUIRED_ENGINES:
         found = False
         for s_dir in SEARCH_DIRS:
@@ -94,13 +83,7 @@ def main() -> int:
                 found = True
                 break
         if not found:
-            missing_engines.append(name)
-
-    if missing_engines:
-        print("\nNote: Some TensorRT RTX VAE engines are not yet present:")
-        for name in missing_engines:
-            print(f" - {name}")
-        print("Engines can be built on demand in ComfyUI using the 'SeedVR2 Build TensorRT VAE Engines' node.")
+            failures.append(f"TensorRT engine is missing: {name}")
 
     if failures:
         print("\nInstallation is incomplete:")
