@@ -59,6 +59,36 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 if script_dir not in sys.path:
     sys.path.insert(0, script_dir)
 
+def _ensure_ffmpeg_path():
+    import shutil
+    if shutil.which("ffmpeg") and shutil.which("ffprobe"):
+        return
+    candidate_dirs = [
+        Path(r"C:\Program Files\ffmpeg\bin"),
+        Path(r"C:\Program Files\ffmpeg"),
+        Path(r"C:\Program Files (x86)\ffmpeg\bin"),
+        Path(r"C:\ffmpeg\bin"),
+        Path(r"D:\ffmpeg\bin"),
+        Path(__file__).resolve().parent / "bin" / "ffmpeg" / "bin",
+        Path(__file__).resolve().parent / "bin",
+    ]
+    for d in candidate_dirs:
+        if (d / "ffmpeg.exe").exists() and (d / "ffprobe.exe").exists():
+            os.environ["PATH"] = str(d) + os.pathsep + os.environ.get("PATH", "")
+            return
+
+    try:
+        import imageio_ffmpeg
+        ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+        if ffmpeg_exe and Path(ffmpeg_exe).exists():
+            ffmpeg_dir = str(Path(ffmpeg_exe).parent)
+            if ffmpeg_dir not in os.environ.get("PATH", ""):
+                os.environ["PATH"] = ffmpeg_dir + os.pathsep + os.environ.get("PATH", "")
+    except Exception:
+        pass
+
+_ensure_ffmpeg_path()
+
 # Set environment variable so all spawned processes can find modules
 os.environ['PYTHONPATH'] = script_dir + ':' + os.environ.get('PYTHONPATH', '')
 
@@ -986,17 +1016,6 @@ def _process_frames_core(
         cache_model=cache_dit
     )
     
-    # TEMP DEBUG: dump upscaled latents for black-block reproduction
-    import torch as _dbg_torch
-    _dbg_dir = r"C:\Users\ussoe\.openclaw-autoclaw\agents\seedvr2\workspace\.openclaw\tmp"
-    _dbg_n = 0
-    for _i, _l in enumerate(ctx.get('all_upscaled_latents', [])):
-        if _l is not None:
-            _dbg_torch.save(_l.detach().cpu().float(), os.path.join(_dbg_dir, 'latent_%d.pt' % _i))
-            _dbg_n += 1
-    print('DEBUG: dumped %d latents' % _dbg_n, flush=True)
-    # END TEMP DEBUG
-
     # Phase 3: Decode
     ctx = decode_all_batches(
         runner, ctx=ctx, debug=debug, progress_callback=None,
