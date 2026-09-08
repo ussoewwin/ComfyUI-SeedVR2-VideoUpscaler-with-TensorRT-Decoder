@@ -128,34 +128,8 @@ try {
         Invoke-TargetPip @('install', '--requirement', $reqFile, '--no-deps', '--index-url', 'https://pypi.org/simple')
     }
 
-    function Install-CachedWheel([string]$ModuleName, [string]$PackageName, [string]$Url) {
-        $check = & $TargetPython -c "import $ModuleName" 2>$null
-        if ($LASTEXITCODE -eq 0 -and -not $Repair) {
-            Write-Host "$PackageName is already installed." -ForegroundColor Green
-            return
-        }
-
-        $wheelsDir = Join-Path $NodeRoot 'wheels'
-        New-Item -ItemType Directory -Force $wheelsDir | Out-Null
-        $filename = [System.IO.Path]::GetFileName($Url.Split('?')[0])
-        $filename = [System.Uri]::UnescapeDataString($filename)
-        $cachedPath = Join-Path $wheelsDir $filename
-
-        if (-not (Test-Path -LiteralPath $cachedPath)) {
-            Write-Step "Downloading $PackageName wheel"
-            Invoke-WebRequest -Uri $Url -OutFile $cachedPath -UseBasicParsing
-        }
-
-        Write-Step "Installing $PackageName"
-        Invoke-TargetPip @('install', $cachedPath, '--no-deps')
-    }
-
-    Write-Step 'Installing FlashAttention 2 and SageAttention 2'
-    Install-CachedWheel 'flash_attn' 'FlashAttention 2' 'https://huggingface.co/ussoewwin/Flash-Attention-2_for_Windows/resolve/main/flash_attn-2.8.4%2Bcu132torch2.13.0cxx11abiTRUE-cp314-cp314-win_amd64.whl'
-    Install-CachedWheel 'sageattention' 'SageAttention 2' 'https://huggingface.co/ussoewwin/Sage-Attention-for-Windows/resolve/main/sageattention-2.2.0.post6%2Bcu132torch2.13.0-cp314-cp314-win_amd64.whl'
-
     Write-Step 'Checking Attention & CUDA optimization'
-    & $TargetPython -c "import sys, torch; sys.path.insert(0, '.'); from src.optimization.compatibility import SAGE_ATTN_2_AVAILABLE, FLASH_ATTN_2_AVAILABLE; print('SageAttention 2:', 'ready' if SAGE_ATTN_2_AVAILABLE else 'not available'); print('FlashAttention 2:', 'ready' if FLASH_ATTN_2_AVAILABLE else 'not available')"
+    & $TargetPython -c "import sys, torch; sys.path.insert(0, '.'); from src.optimization.compatibility import SAGE_ATTN_2_AVAILABLE, FLASH_ATTN_2_AVAILABLE; print('SageAttention 2:', 'ready' if SAGE_ATTN_2_AVAILABLE else 'not available (using SDPA)'); print('FlashAttention 2:', 'ready' if FLASH_ATTN_2_AVAILABLE else 'not available (using SDPA)')"
     if ($LASTEXITCODE -ne 0) { Write-Warning 'Attention kernel verification reported a warning.' }
 
     if (-not $SkipModels) {
