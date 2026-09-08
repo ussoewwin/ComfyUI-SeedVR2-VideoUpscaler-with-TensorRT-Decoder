@@ -9,6 +9,14 @@
 
 Fork 发行历史。
 
+## v1.5.2 — 2026-09-08
+
+- **摘要：** 修复 TensorRT VAE 解码器中的黑块（空白 tile）回归问题，修正引擎选择逻辑：
+  - **引擎选择重构：** `pick_engine_frames` 现在扫描实际存在的引擎文件（如 25f / 29f / 41f / 61f），取代硬编码的 `(video_frames, 29, 21, 5)` 列表，使已下载的引擎真正被使用，不再静默回退到 PyTorch VAE。
+  - **不再静默回退：** `resolve_engine_frames` 返回磁盘上最大的引擎；短于最小引擎的片段会先填充、单次解码后再裁剪，而不是回退。
+  - **按批次选择引擎：** `_trt_decode_batch` 根据实际批次长度选择引擎（短批次自动填充 + 裁剪）。
+- **技术详情：** 参见 [v1.5.2 发行说明](https://github.com/ussoewwin/ComfyUI-SeedVR2-VideoUpscaler-with-TensorRT-Decoder/releases/tag/v1.5.2) 获取完整说明
+
 ## v1.5.1 — 2026-09-05
 
 - **摘要：** 安装程序与运行时稳定性全面改进：

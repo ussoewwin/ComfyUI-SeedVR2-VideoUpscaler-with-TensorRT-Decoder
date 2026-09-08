@@ -9,6 +9,14 @@
 
 Fork release history.
 
+## v1.5.2 — 2026-09-08
+
+- **Summary:** Fixed a black-out (blank tile) regression in the TensorRT VAE Decoder by correcting engine selection:
+  - **Engine Selection Overhaul:** `pick_engine_frames` now scans the artifact directories for engines that actually exist (e.g. 25f / 29f / 41f / 61f) instead of the hardcoded `(video_frames, 29, 21, 5)` list, so downloaded engines are actually used instead of silently falling back to the PyTorch VAE.
+  - **No Silent Fallback:** `resolve_engine_frames` now returns the largest engine on disk; clips shorter than the smallest engine are padded, decoded in one shot, and cropped back instead of falling back.
+  - **Per-Batch Engine Selection:** `_trt_decode_batch` selects the engine from the actual batch length (with pad + crop for short batches).
+- **Technical Details:** See [v1.5.2 Release Notes](https://github.com/ussoewwin/ComfyUI-SeedVR2-VideoUpscaler-with-TensorRT-Decoder/releases/tag/v1.5.2) for complete explanation
+
 ## v1.5.1 — 2026-09-05
 
 - **Summary:** Comprehensive installer and runtime reliability overhaul:
