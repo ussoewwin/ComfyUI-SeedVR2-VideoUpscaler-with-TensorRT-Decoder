@@ -24,7 +24,7 @@ class SeedVR2Extension(ComfyExtension):
             SeedVR2LoadVAEModel,
             SeedVR2TorchCompileSettings,
             SeedVR2BuildTensorRTVAE,
-                    SeedVR2LoadTensorRTVAEDecoder,
+            SeedVR2LoadTensorRTVAEDecoder,
         ]
 
 
@@ -39,7 +39,7 @@ __all__ = [
     'SeedVR2LoadVAEModel',
     'SeedVR2TorchCompileSettings',
     'SeedVR2BuildTensorRTVAE',
-    SeedVR2LoadTensorRTVAEDecoder,
+    'SeedVR2LoadTensorRTVAEDecoder',
     'SeedVR2Extension',
     'comfy_entrypoint',
 ]

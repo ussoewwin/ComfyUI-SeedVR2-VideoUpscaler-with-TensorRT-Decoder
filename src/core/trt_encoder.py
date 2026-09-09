@@ -10,6 +10,29 @@ from threading import Lock
 
 import torch
 
+# --- TRT encode debug hooks (SEEDVR2_TRT_DEBUG=1 to enable; default off) ---
+_TRT_DEBUG = os.environ.get("SEEDVR2_TRT_DEBUG", "0") == "1"
+_TRT_DEBUG_DIR = os.environ.get("SEEDVR2_TRT_DEBUG_DIR", "") or None
+
+def _trt_dbg_log(msg):
+    if _TRT_DEBUG:
+        print(f"[TRT-DEBUG] {msg}", flush=True)
+
+def _trt_dbg_stats(tag, t):
+    if not _TRT_DEBUG:
+        return
+    tt = t.detach().float()
+    _trt_dbg_log(f"{tag}: shape={tuple(tt.shape)} dtype={t.dtype} "
+                f"min={float(tt.min()):.4f} max={float(tt.max()):.4f} "
+                f"mean={float(tt.mean()):.4f} std={float(tt.std()):.4f} "
+                f"NaN={bool(torch.isnan(tt).any())} Inf={bool(torch.isinf(tt).any())}")
+    if _TRT_DEBUG_DIR:
+        try:
+            import os as _os
+            torch.save(tt.cpu(), _os.path.join(_TRT_DEBUG_DIR, tag.replace(' ', '_') + '.pt'))
+        except Exception as e:
+            _trt_dbg_log(f"save {tag} failed: {e}")
+
 try:
     import tensorrt_rtx as trt
     HAS_TRT = True
@@ -96,12 +119,13 @@ def _positions(length: int, tile: int, overlap: int) -> list[int]:
 
 def _feather(length: int, overlap: int, left: bool, right: bool, device: torch.device) -> torch.Tensor:
     weight = torch.ones(length, device=device, dtype=torch.float32)
-    if left and overlap:
-        weight[:overlap] = torch.linspace(0.0, 1.0, overlap + 1, device=device)[1:]
-    if right and overlap:
-        weight[-overlap:] = torch.minimum(
-            weight[-overlap:], torch.linspace(1.0, 0.0, overlap + 1, device=device)[1:]
-        )
+    if overlap:
+        t = torch.linspace(0.0, 1.0, overlap + 1, device=device)[1:]
+        ramp = (1.0 - torch.cos(t * 3.141592653589793)) / 2.0  # cosine ease
+        if left:
+            weight[:overlap] = ramp
+        if right:
+            weight[-overlap:] = torch.minimum(weight[-overlap:], torch.flip(ramp, dims=[0]))
     return weight
 
 
@@ -115,21 +139,33 @@ def _encode_single_chunk(sample: torch.Tensor, frames: int, vae: torch.nn.Module
 
     # Set input shape to the engine's tile size (256px or 512px)
     context.set_input_shape(input_name, (1, 3, frames, tile_px, tile_px))
+    # Barrier: TRT may (de)allocate internal buffers asynchronously after
+    # set_input_shape. Without a sync, the FIRST tile of a batch intermittently
+    # reads a half-initialized buffer -> NaN (always the first tile y=0/x=0).
+    torch.cuda.synchronize()
 
     source = sample.to(device="cuda", dtype=torch.float16).contiguous()
     # Wide overlap (96px on 256px tiles = 37.5%) to keep the tile-edge zero-padding
     # influence out of the blended region. Small tiles make the receptive-field
     # edge effect proportionally larger, so 256px needs a wider overlap than 512px.
-    tile, overlap = tile_px, 96
-    ys, xs = _positions(height, tile, overlap), _positions(width, tile, overlap)
-    padded_h, padded_w = max(height, ys[-1] + tile), max(width, xs[-1] + tile)
-    source = torch.nn.functional.pad(source, (0, padded_w - width, 0, padded_h - height))
+    tile, overlap = tile_px, tile_px * 3 // 8  # 37.5% tile-to-tile overlap (96px@256, 192px@512)
+    # Outer pad = half a tile: places each image corner at the CENTER of its
+    # corner tile, so the receptive-field-poor tile edges and the replicated
+    # padding stay away from real image content (fixes the top-left blur/noise).
+    pad = tile_px // 2
+    source = torch.nn.functional.pad(source, (pad, pad, pad, pad, 0, 0), mode="replicate")
+    height_p, width_p = height + 2 * pad, width + 2 * pad
+    ys, xs = _positions(height_p, tile, overlap), _positions(width_p, tile, overlap)
+    padded_h, padded_w = max(height_p, ys[-1] + tile), max(width_p, xs[-1] + tile)
+    source = torch.nn.functional.pad(source, (0, padded_w - width_p, 0, padded_h - height_p))
     latent_frames = (frames - 1) // 4 + 1
     latent_h, latent_w = height // 8, width // 8
     raw_h, raw_w = padded_h // 8, padded_w // 8
     result = torch.zeros((1, 32, latent_frames, raw_h, raw_w), device="cuda", dtype=torch.float32)
     weights = torch.zeros_like(result)
+    dc_result = torch.zeros((1, 32, latent_frames, raw_h, raw_w), device="cuda", dtype=torch.float32)
     overlap_latent = overlap // 8
+    offset_latent = pad // 8
 
     with _ENCODE_LOCK, torch.cuda.stream(stream):
         for y in ys:
@@ -142,14 +178,31 @@ def _encode_single_chunk(sample: torch.Tensor, frames: int, vae: torch.nn.Module
                 if not context.execute_async_v3(stream.cuda_stream):
                     raise RuntimeError(f"TensorRT VAE encoder failed at tile y={y}, x={x}")
                 stream.synchronize()
+                if _TRT_DEBUG:
+                    _dbg_tv = tile_output.float()
+                    _dbg_sd = float(_dbg_tv.std())
+                    _trt_dbg_log(f"enc tile y={y} x={x} (ly={y // 8},lx={x // 8}) "
+                                f"min={float(_dbg_tv.min()):.4f} max={float(_dbg_tv.max()):.4f} "
+                                f"std={_dbg_sd:.5f}" + ("  <<< BLACK?" if _dbg_sd < 0.05 else ""))
                 ly, lx = y // 8, x // 8
+                # DC offset correction: estimate the tile's true DC from its
+                # accurate center (inside the receptive-field-poor edge ring),
+                # subtract it, and restore it later as a weighted average.
+                edge = overlap_latent // 2
+                center = tile_output[:, :, :, edge:tile_lat - edge, edge:tile_lat - edge]
+                dc = center.mean(dim=(3, 4), keepdim=True)
+                corrected = tile_output.float() - dc.float()
                 wy = _feather(tile_lat, overlap_latent, y != ys[0], y != ys[-1], tile_output.device)
                 wx = _feather(tile_lat, overlap_latent, x != xs[0], x != xs[-1], tile_output.device)
                 window = (wy[:, None] * wx[None, :]).view(1, 1, 1, tile_lat, tile_lat)
-                result[:, :, :, ly:ly + tile_lat, lx:lx + tile_lat] += tile_output.float() * window
+                result[:, :, :, ly:ly + tile_lat, lx:lx + tile_lat] += corrected * window
+                dc_result[:, :, :, ly:ly + tile_lat, lx:lx + tile_lat] += dc.float() * window
                 weights[:, :, :, ly:ly + tile_lat, lx:lx + tile_lat] += window
 
-    encoded = (result / weights.clamp_min(1e-6))[:, :16, :, :latent_h, :latent_w].to(sample.dtype)
+    restored = (result + dc_result) / weights.clamp_min(1e-6)
+    encoded = restored[:, :16, :, offset_latent:offset_latent + latent_h, offset_latent:offset_latent + latent_w].to(sample.dtype)
+    if _TRT_DEBUG:
+        _trt_dbg_stats(f"enc_chunk_out_{frames}f", encoded)
     return encoded
 
 
@@ -198,6 +251,10 @@ def encode(sample: torch.Tensor, vae: torch.nn.Module | None = None, dit_model: 
     _, _, total_frames, height, width = sample.shape
     if height % 8 or width % 8:
         raise ValueError("TensorRT encoder input dimensions must be divisible by 8")
+
+    # Release cached-but-unused VRAM from previous batches/other nodes to avoid
+    # allocator pressure during 512px-tile engine execution (NaN source).
+    torch.cuda.empty_cache()
 
     # Ensure 4n+1
     req_frames = ((total_frames - 1) // 4) * 4 + 1
