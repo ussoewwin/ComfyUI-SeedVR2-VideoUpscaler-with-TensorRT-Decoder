@@ -398,18 +398,27 @@ class VideoDiffusionInfer():
                 _dec_trt = getattr(self, "use_tensorrt_vae_decode",
                                    getattr(self, "use_tensorrt_vae", False))
                 if _dec_trt or os.environ.get("SEEDVR2_TRT_DECODER", "0") == "1":
-                    try:
-                        from .trt_decoder import is_available as trt_dec_available, decode as trt_decode
-                        dec_latent = latent if latent.ndim == 5 else latent.unsqueeze(0)
-                        if dec_latent.ndim == 5 and trt_dec_available(dec_latent.shape[2]):
-                            self.debug.log(f"Decoding with TensorRT VAE Decoder (engine={getattr(self, 'use_tensorrt_decode_engine_frames', 'auto')})", category="info", indent_level=1)
-                            sample = _trt_decode_batch(dec_latent, self.vae, self._resolve_dit_name(), getattr(self, 'use_tensorrt_decode_engine_frames', 'auto'))
-                            if sample.ndim == 5 and sample.shape[0] == 1:
-                                sample = sample.squeeze(0)
-                            samples.append(sample)
-                            continue
-                    except Exception as trt_dec_err:
-                        self.debug.log(f"TensorRT VAE Decoder fallback to standard VAE: {trt_dec_err}", category="warning", indent_level=1)
+                    # No silent fp16 fallback: selecting the TensorRT decoder means
+                    # TRT must decode. A missing engine / any failure raises a clear
+                    # error instead of quietly running the standard (fp16) VAE.
+                    from .trt_decoder import decode as trt_decode, HAS_TRT as _trt_has
+                    if not _trt_has:
+                        raise RuntimeError(
+                            "TensorRT VAE Decoder is selected but TensorRT is not available. "
+                            "Install tensorrt-rtx or use SeedVR2LoadVAEModel for fp16 decode."
+                        )
+                    dec_latent = latent if latent.ndim == 5 else latent.unsqueeze(0)
+                    if dec_latent.ndim != 5:
+                        raise RuntimeError(
+                            f"TensorRT VAE Decoder expects [1,C,T,H,W], got {tuple(latent.shape)}. "
+                            "Use SeedVR2LoadVAEModel for fp16 decode."
+                        )
+                    self.debug.log(f"Decoding with TensorRT VAE Decoder (engine={getattr(self, 'use_tensorrt_decode_engine_frames', 'auto')})", category="info", indent_level=1)
+                    sample = _trt_decode_batch(dec_latent, self.vae, self._resolve_dit_name(), getattr(self, 'use_tensorrt_decode_engine_frames', 'auto'))
+                    if sample.ndim == 5 and sample.shape[0] == 1:
+                        sample = sample.squeeze(0)
+                    samples.append(sample)
+                    continue
 
                 # Detect VAE model dtype
                 try:
