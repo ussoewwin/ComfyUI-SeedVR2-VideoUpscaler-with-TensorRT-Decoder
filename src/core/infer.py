@@ -296,37 +296,52 @@ class VideoDiffusionInfer():
                 except StopIteration:
                     vae_dtype = dtype  # Fallback
 
-                # sample is already [1, C, T, H, W] (5D); encode the whole clip at
-                # once. slicing_encode splits temporally with a causal conv cache,
-                # preserving temporal context without the old empty_cache/gc overhead.
                 # Use autocast if VAE dtype differs from input dtype
                 # Skip autocast on MPS (only supports bf16, unified memory = no benefit)
                 # Instead, explicitly convert input to model dtype
-                if vae_dtype != sample.dtype:
-                    if device.type == 'mps':
-                        sample = sample.to(vae_dtype)
-                        if use_sample:
-                            latent = self.vae.encode(sample, tiled=self.encode_tiled, tile_size=self.encode_tile_size,
-                                                     tile_overlap=self.encode_tile_overlap).latent
-                        else:
-                            latent = self.vae.encode(sample, tiled=self.encode_tiled, tile_size=self.encode_tile_size,
-                                                     tile_overlap=self.encode_tile_overlap).posterior.mode().squeeze(2)
-                    else:
-                        with torch.autocast(device.type, sample.dtype, enabled=True):
+                import gc
+                latent_chunks = []
+                num_frames = sample.size(0)
+
+                for f_idx in range(num_frames):
+                    frame_sample = sample[f_idx:f_idx+1]
+                    
+                    if vae_dtype != frame_sample.dtype:
+                        if device.type == 'mps':
+                            # MPS: explicit dtype conversion instead of autocast
+                            frame_sample = frame_sample.to(vae_dtype)
                             if use_sample:
-                                latent = self.vae.encode(sample, tiled=self.encode_tiled, tile_size=self.encode_tile_size,
-                                                         tile_overlap=self.encode_tile_overlap).latent
+                                frame_latent = self.vae.encode(frame_sample, tiled=self.encode_tiled, tile_size=self.encode_tile_size, 
+                                                        tile_overlap=self.encode_tile_overlap).latent
                             else:
-                                latent = self.vae.encode(sample, tiled=self.encode_tiled, tile_size=self.encode_tile_size,
-                                                         tile_overlap=self.encode_tile_overlap).posterior.mode().squeeze(2)
-                else:
-                    if use_sample:
-                        latent = self.vae.encode(sample, tiled=self.encode_tiled, tile_size=self.encode_tile_size,
-                                                 tile_overlap=self.encode_tile_overlap).latent
+                                frame_latent = self.vae.encode(frame_sample, tiled=self.encode_tiled, tile_size=self.encode_tile_size,
+                                                    tile_overlap=self.encode_tile_overlap).posterior.mode().squeeze(2)
+                        else:
+                            with torch.autocast(device.type, frame_sample.dtype, enabled=True):
+                                if use_sample:
+                                    frame_latent = self.vae.encode(frame_sample, tiled=self.encode_tiled, tile_size=self.encode_tile_size, 
+                                                            tile_overlap=self.encode_tile_overlap).latent
+                                else:
+                                    frame_latent = self.vae.encode(frame_sample, tiled=self.encode_tiled, tile_size=self.encode_tile_size,
+                                                        tile_overlap=self.encode_tile_overlap).posterior.mode().squeeze(2)
                     else:
-                        # Deterministic vae encode, only used for i2v inference (optionally)
-                        latent = self.vae.encode(sample, tiled=self.encode_tiled, tile_size=self.encode_tile_size,
-                                                 tile_overlap=self.encode_tile_overlap).posterior.mode().squeeze(2)
+                        if use_sample:
+                            frame_latent = self.vae.encode(frame_sample, tiled=self.encode_tiled, tile_size=self.encode_tile_size, 
+                                                    tile_overlap=self.encode_tile_overlap).latent
+                        else:
+                            # Deterministic vae encode, only used for i2v inference (optionally)
+                            frame_latent = self.vae.encode(frame_sample, tiled=self.encode_tiled, tile_size=self.encode_tile_size,
+                                                tile_overlap=self.encode_tile_overlap).posterior.mode().squeeze(2)
+
+                    latent_chunks.append(frame_latent)
+                    
+                    del frame_sample
+                    if device.type == 'cuda':
+                        torch.cuda.empty_cache()
+                    gc.collect()
+
+                latent = torch.cat(latent_chunks, dim=0)
+                del latent_chunks
 
                 latent = latent.unsqueeze(2) if latent.ndim == 4 else latent
                 latent = optimized_channels_to_last(latent)
