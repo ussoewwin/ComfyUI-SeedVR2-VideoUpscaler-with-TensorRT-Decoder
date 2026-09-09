@@ -407,7 +407,10 @@ class VideoDiffusionInfer():
                             "TensorRT VAE Decoder is selected but TensorRT is not available. "
                             "Install tensorrt-rtx or use SeedVR2LoadVAEModel for fp16 decode."
                         )
-                    dec_latent = latent if latent.ndim == 5 else latent.unsqueeze(0)
+                    # latent may be 5D [B,C,T,H,W] (video) or 4D [B,C,H,W]
+                    # (single-image: the temporal dim was squeezed earlier). For
+                    # TRT we always need [B,C,T,H,W], so restore T=1 on 4D input.
+                    dec_latent = latent if latent.ndim == 5 else latent.unsqueeze(2)
                     if dec_latent.ndim != 5:
                         raise RuntimeError(
                             f"TensorRT VAE Decoder expects [1,C,T,H,W], got {tuple(latent.shape)}. "
