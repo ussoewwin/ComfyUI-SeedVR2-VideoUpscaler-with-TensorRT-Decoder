@@ -9,6 +9,13 @@
 
 Fork release history.
 
+## v1.5.3 — 2026-09-09
+
+- **Summary:** Reverted VAE encoding to the standard FP16 path and optimized it:
+  - **Paused TensorRT VAE Encoder:** Unregistered SeedVR2LoadTensorRTVAEModel from the node registry. The TensorRT encoder's top-left tiling noise could not be fully resolved, so encoding now uses the standard FP16 VAE. SeedVR2LoadTensorRTVAEDecoder (decode-only TRT) and SeedVR2BuildTensorRTVAE remain available.
+  - **Batch Encoding:** ae_encode now encodes each clip in one shot instead of a per-frame loop (which was effectively a no-op, since the batch dimension is 1). This lets slicing_encode split the clip temporally with its causal conv cache, preserving temporal context while removing per-frame mpty_cache/gc overhead.
+- **Technical Details:** See [v1.5.3 Release Notes](https://github.com/ussoewwin/ComfyUI-SeedVR2-VideoUpscaler-with-TensorRT-Decoder/releases/tag/v1.5.3) for complete explanation
+
 ## v1.5.2 — 2026-09-08
 
 - **Summary:** Fixed a black-out (blank tile) regression in the TensorRT VAE Decoder by correcting engine selection:

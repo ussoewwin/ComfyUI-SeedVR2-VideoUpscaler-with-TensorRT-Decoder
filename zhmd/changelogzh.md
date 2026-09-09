@@ -9,6 +9,13 @@
 
 Fork 发行历史。
 
+## v1.5.3 — 2026-09-09
+
+- **摘要：** 将 VAE 编码回退至标准 FP16 路径并优化：
+  - **暂停 TensorRT VAE 编码器：** 从节点注册表移除 SeedVR2LoadTensorRTVAEModel。由于 TensorRT 编码器的左上角分块噪点无法完全解决，编码现改用标准 FP16 VAE。SeedVR2LoadTensorRTVAEDecoder（仅解码 TRT）与 SeedVR2BuildTensorRTVAE 仍可用。
+  - **批量编码：** ae_encode 现在一次性编码整个片段（旧有的逐帧循环实际上是无操作，因为批次维度为 1），交由 slicing_encode 以因果卷积缓存进行时间切分，在保留时间上下文的同时移除了逐帧的 mpty_cache/gc 开销。
+- **技术详情：** 参见 [v1.5.3 发行说明](https://github.com/ussoewwin/ComfyUI-SeedVR2-VideoUpscaler-with-TensorRT-Decoder/releases/tag/v1.5.3) 获取完整说明
+
 ## v1.5.2 — 2026-09-08
 
 - **摘要：** 修复 TensorRT VAE 解码器中的黑块（空白 tile）回归问题，修正引擎选择逻辑：
